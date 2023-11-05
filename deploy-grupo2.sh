@@ -143,7 +143,7 @@ ports=80,443/tcp
 [WWW Cache]
 title=Web Server (8080)
 description=Web Server (8080)
-ports=8080/tcp > /etc/ufw/applications.d/ufw-webserver
+ports=8080/tcp" > /etc/ufw/applications.d/ufw-webserver
 ufw enable
 ufw allow "WWW Full" 
 systemctl reload ufw
@@ -151,7 +151,7 @@ systemctl reload ufw
 #Restart apache2 service
 systemctl reload apache2
 
-echo "Testing if installation was successful
+echo "Testing if installation was successful"
 if is_installed apache2 && is_installed mariadb-server && is_installed php && is_installed git && is_installed curl; then
   echo "LAMP installation successful!"
 else
