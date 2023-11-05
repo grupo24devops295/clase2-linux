@@ -55,7 +55,7 @@ systemctl start mariadb
 #echo "Please enter the MariaDB root password:"
 #read -s root_passwd
 
-echo "Configuring MariaDB with the provided root password"
+#echo "Configuring MariaDB with the provided root password"
 
 #printf "n\n n\n y\n y\n y\n y\n" | mysql_secure_installation
 #mysql -e "SET PASSWORD FOR root@localhost = PASSWORD('$root_passwd');"
@@ -119,9 +119,13 @@ fi
 cp -r $repo/app-295devops-travel/* /var/www/html
 mysql < bootcamp-devops-2023/app-295devops-travel/database/devopstravel.sql
 
+#Agregar apache2 al firewall ufw opcional para cada quien
+#ufw allow "WWW Full"
+
+#Restart apache2 service
 systemctl reload apache2
 
-echo "Testing if installation was successful"
+echo "Testing if installation was successful
 if is_installed apache2 && is_installed mariadb-server && is_installed php && is_installed git && is_installed curl; then
   echo "LAMP installation successful!"
 else
