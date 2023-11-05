@@ -32,19 +32,19 @@ apt update
 # Check if Git is installed or not
 if ! is_installed git; then
   echo "Installing Git"
-  apt install -y git &
+  apt -qq install -y git
 fi
 
 # Check if Curl is installed or not
 if ! is_installed curl; then
   echo "Installing Curl"
-  apt install -y curl &
+  apt -qq install -y curl
 fi
 
 # Check if MariaDB is installed or not
 if ! is_installed mariadb-server; then
   echo "Installing MariaDB"
-  apt install -y mariadb-server &
+  apt -qq install -y mariadb-server
 
 # Enable and start MariaDB
 systemctl enable mariadb
@@ -75,7 +75,7 @@ fi
 # Check if Apache is installed or not
 if ! is_installed apache2; then
   echo "Installing  Apache"
-  apt install -y apache2 &
+  apt -qq install -y apache2
 
 #Rename apache2 index.html
 mv /var/www/html/index.html /var/www/html/index.html.bk
@@ -88,7 +88,7 @@ fi
 # Check if PHP is installed or not
 if ! is_installed php; then
  echo "Installing PHP"
-  apt install -y php libapache2-mod-php php-mysql &
+  apt -qq install -y php libapache2-mod-php php-mysql
 fi
 # Path to dir.conf file
 dirconf_file="/etc/apache2/mods-enabled/dir.conf"
@@ -113,7 +113,7 @@ if [ -d "$repo" ]; then
 else
     echo "Repo does not exist, clonning the repo"
     sleep 1
-    git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git &
+    git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
 fi
 
 cp -r $repo/app-295devops-travel/* /var/www/html
@@ -123,7 +123,7 @@ mysql < bootcamp-devops-2023/app-295devops-travel/database/devopstravel.sql
 # Check if UFW firewall is installed or not
 if ! is_installed ufw; then
   echo "Installing  UFW Firewall"
-  apt install -y ufw &
+  apt -qq install -y ufw
   echo "
   [WWW]
 title=Web Server
