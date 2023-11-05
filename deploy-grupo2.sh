@@ -51,7 +51,7 @@ fi
 systemctl enable mariadb
 systemctl start mariadb
 
-# Prompt for the MariaDB root password
+# Prompt for the MariaDB root password (esta parte se habilitara luego)
 #echo "Please enter the MariaDB root password:"
 #read -s root_passwd
 
@@ -124,7 +124,6 @@ systemctl reload apache2
 echo "Testing if installation was successful"
 if is_installed apache2 && is_installed mariadb-server && is_installed php && is_installed git && is_installed curl; then
   echo "LAMP installation successful!"
-  #curl  http://localhost/info.php
 else
   echo "LAMP installation failed!"
 fi
