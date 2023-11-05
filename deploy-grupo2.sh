@@ -32,20 +32,19 @@ apt update
 # Check if Git is installed or not
 if ! is_installed git; then
   echo "Installing Git"
-  apt install -y git
+  apt install -y git &
 fi
 
 # Check if Curl is installed or not
 if ! is_installed curl; then
   echo "Installing Curl"
-  apt install -y curl
+  apt install -y curl &
 fi
 
 # Check if MariaDB is installed or not
 if ! is_installed mariadb-server; then
   echo "Installing MariaDB"
-  apt install -y mariadb-server
-fi
+  apt install -y mariadb-server &
 
 # Enable and start MariaDB
 systemctl enable mariadb
@@ -71,11 +70,12 @@ CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_passwd';
 GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';
 FLUSH PRIVILEGES ;"
 echo "Database $db_name created with user $db_user and password."
+fi
 
 # Check if Apache is installed or not
 if ! is_installed apache2; then
   echo "Installing  Apache"
-  apt install -y apache2
+  apt install -y apache2 &
 
 #Rename apache2 index.html
 mv /var/www/html/index.html /var/www/html/index.html.bk
@@ -83,12 +83,12 @@ mv /var/www/html/index.html /var/www/html/index.html.bk
 # Enable and start Apache
 systemctl enable apache2
 systemctl start apache2
-
 fi
+
 # Check if PHP is installed or not
 if ! is_installed php; then
  echo "Installing PHP"
-  apt install -y php libapache2-mod-php php-mysql
+  apt install -y php libapache2-mod-php php-mysql &
 fi
 # Path to dir.conf file
 dirconf_file="/etc/apache2/mods-enabled/dir.conf"
@@ -113,14 +113,40 @@ if [ -d "$repo" ]; then
 else
     echo "Repo does not exist, clonning the repo"
     sleep 1
-    git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
+    git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git &
 fi
 
 cp -r $repo/app-295devops-travel/* /var/www/html
 mysql < bootcamp-devops-2023/app-295devops-travel/database/devopstravel.sql
 
 #Agregar apache2 al firewall ufw opcional para cada quien
-#ufw allow "WWW Full"
+# Check if UFW firewall is installed or not
+if ! is_installed ufw; then
+  echo "Installing  UFW Firewall"
+  apt install -y ufw &
+  echo "
+  [WWW]
+title=Web Server
+description=Web server
+ports=80/tcp
+
+[WWW Secure]
+title=Web Server (HTTPS)
+description=Web Server (HTTPS)
+ports=443/tcp
+
+[WWW Full]
+title=Web Server (HTTP,HTTPS)
+description=Web Server (HTTP,HTTPS)
+ports=80,443/tcp
+
+[WWW Cache]
+title=Web Server (8080)
+description=Web Server (8080)
+ports=8080/tcp > /etc/ufw/applications.d/ufw-webserver
+ufw enable
+ufw allow "WWW Full" 
+systemctl reload ufw
 
 #Restart apache2 service
 systemctl reload apache2
