@@ -1,5 +1,5 @@
-#!/bin/bash -x
-set -e
+#!/bin/bash
+#set -e
 
 # Repository variable
 repo="bootcamp-devops-2023"
@@ -23,7 +23,7 @@ fi
 
 echo "Checking for update before install"
 # Update the package list
-sudo apt update -qq
+apt update -qq
 
 # Function to display progress bar
 function progress_bar() {
@@ -49,7 +49,7 @@ for package in "${packages[@]}"; do
 
   else
     # Install package
-    sudo apt-get install -qq "$package" > /dev/null 2>&1
+     apt-get install -y -qq "$package" > /dev/null 2>&1
 
     # Check if installation was successful
     if [ $? -eq 0 ]; then
@@ -58,7 +58,7 @@ for package in "${packages[@]}"; do
       echo " $package installed successfully."
     else
       echo "Failed to install $package. Removing packages..."
-      sudo apt-get purge "${packages[@]}" -qq
+      apt-get -y purge "${packages[@]}" -qq
       exit 1
     fi
   fi
@@ -81,12 +81,14 @@ if [ -f /var/www/html/index.html ]; then
     echo "index.html exist"
     mv /var/www/html/index.html /var/www/html/index.html.bk
 else
-    echo "index.html does not exist"
+    echo "index.html does not exist. Please re-install apache2"
+    exit 1
 fi
 
 # Check if dir.conf file exists
 if [ ! -f "$dirconf_file" ]; then
     echo "The dir.conf file does not exist. Please re-install"
+    exit 1
 else
     sed -i 's/DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/' $dirconf_file
     echo "index.php added to the DirectoryIndex in dir.conf."
@@ -140,7 +142,7 @@ if [ -f /var/www/html/index.php ]; then
 echo "file exist"
 else
 cp -r $repo/app-295devops-travel/* /var/www/html
-if
+fi
 
 # Test if php.info is successful
 php_info=$(curl -s localhost/php.info)
