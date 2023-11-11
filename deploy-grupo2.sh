@@ -35,7 +35,7 @@ function progress_bar() {
 }
 
 # Install Apache packages
-packages=("apache2" "php" "libapache2-mod-php" "php-mysql" "php-mbstring" "php-zip" "php-gd" "php-json" "php-curl" "curl" "git")
+packages=("apache2" "mariadb-server" "php" "libapache2-mod-php" "php-mysql" "php-mbstring" "php-zip" "php-gd" "php-json" "php-curl" "curl" "git")
 total_count=${#packages[@]}
 package_count=0
 
