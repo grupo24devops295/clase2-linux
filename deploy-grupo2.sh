@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 set -e
 
 # Repository variable
@@ -36,7 +36,7 @@ function progress_bar() {
 }
 
 # Install Apache packages
-packages=("apache2" "mariadb-server" "php" "libapache2-mod-php" "php-mysql" "php-mbstring" "php-zip" "php-gd" "php-json" "php-curl" "curl" "git")
+packages=("apache2" "mariadb-server" "php" "pv" "libapache2-mod-php" "php-mysql" "php-mbstring" "php-zip" "php-gd" "php-json" "php-curl" "curl" "git")
 total_count=${#packages[@]}
 package_count=0
 
@@ -49,7 +49,7 @@ for package in "${packages[@]}"; do
 
   else
     # Install package
-     apt-get install -y -qq "$package" > /dev/null 2>&1
+     apt-get install -y -qq "$package $firewall" > /dev/null 2>&1
 
     # Check if installation was successful
     if [ $? -eq 0 ]; then
@@ -78,9 +78,9 @@ php_index="grep DirectoryIndex $dirconfig_file | awk '{print $2}'"
 
 if [ -f /var/www/html/index.html ]; then
     echo "index.html exist"
-    mv /var/www/html/index.html /var/www/html/index.html.bk
+    mv /var/www/html/index.html | pv -p -t | /var/www/html/index.html.bk
 else
-    echo "index.html does not exist."
+    echo "index.html is now index.html.bk"
 fi
 
 # Check if dir.conf file exists
@@ -92,7 +92,7 @@ else
     echo "index.php added to the DirectoryIndex in dir.conf."
 fi
 
-if [ $php_index == "index.php" ]; then
+if [[ $php_index == "index.php" ]]; then
     echo "index.php file exist. Reloading apache2"
     systemctl reload apache2 --quiet
 fi
@@ -144,11 +144,11 @@ fi
 if [ -f /var/www/html/index.php ]; then
 echo "file exist"
 else
-cp -r $repo/app-295devops-travel/* /var/www/html/
+cp -r $repo/app-295devops-travel/* | pv | /var/www/html/
 fi
 
 # Test if php.info is successful
-php_info=$(curl -s localhost/info.php)
+php_info=$(curl -s localhost/info.php | grep phpinfo)
 if [[ $php_info == *"phpinfo"* ]]; then
   echo "info.php test successful."
 else
@@ -159,6 +159,23 @@ if [ -d /var/www/html/database ]; then
 echo "$db_name databse exist"
 else
 mysql < bootcamp-devops-2023/app-295devops-travel/database/devopstravel.sql
+fi
+
+#Check if ufw firewall is present
+#for i in ufw; do
+
+dpkg -s ufw > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+  echo "ufw Firewall is installed"
+  ufw --force enable
+  ufw allow "WWW Full"
+  ufw --force reload
+else
+  echc "Installing  UFW Firewall"
+  apt install -y ufw -qq
+  ufw --force enable
+  ufw allow "WWW Full"
+  ufw --force reload
 fi
 
 #echo "Testing if installation was successful"
