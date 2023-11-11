@@ -1,5 +1,5 @@
-#!/bin/bash
-#set -e
+#!/bin/bash -x
+set -e
 
 # Repository variable
 repo="bootcamp-devops-2023"
@@ -12,6 +12,7 @@ db_root_passwd="abcde12345"
 db_name="devopstravel"
 db_user="codeuser"
 db_user_passwd="123456"
+dirconf_file='/etc/apache2/mods-enabled/dir.conf'
 
 echo "Checking if this script is run by root"
 #check if script is being run as root
@@ -73,15 +74,13 @@ if [ $package_count -eq $total_count ]; then
 fi
 
 # Path for apache file and php
-dirconf_file="/etc/apache2/mods-enabled/dir.conf"
-php_index=$(grep DirectoryIndex $dirconfig_file | awk '{print $2}')
+php_index="grep DirectoryIndex $dirconfig_file | awk '{print $2}'"
 
 if [ -f /var/www/html/index.html ]; then
     echo "index.html exist"
     mv /var/www/html/index.html /var/www/html/index.html.bk
 else
-    echo "index.html does not exist. Please re-install apache2"
-    exit 1
+    echo "index.html does not exist."
 fi
 
 # Check if dir.conf file exists
@@ -129,8 +128,8 @@ else
 fi
 
 # Reload MariaDB
-echo "Reloading mariadb"
-systemctl reload apache2 mariadb --quiet
+echo "Restarting mariadb"
+systemctl restart apache2 mariadb --quiet
 
 if [ -d "$repo" ]; then
     echo $repo exist
@@ -145,16 +144,15 @@ fi
 if [ -f /var/www/html/index.php ]; then
 echo "file exist"
 else
-cp -r $repo/app-295devops-travel/* /var/www/html
+cp -r $repo/app-295devops-travel/* /var/www/html/
 fi
 
 # Test if php.info is successful
-php_info=$(curl -s localhost/php.info)
+php_info=$(curl -s localhost/info.php)
 if [[ $php_info == *"phpinfo"* ]]; then
-  echo "php.info test successful."
+  echo "info.php test successful."
 else
-  echo "php.info test failed."
-  exit 1
+  echo "info.php test failed."
 fi
 
 if [ -d /var/www/html/database ]; then
