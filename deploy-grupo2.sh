@@ -1,17 +1,18 @@
 #!/bin/bash -x
 set -e
 
-# Repository
+# Repository variable
 repo="bootcamp-devops-2023"
 
 # MySQL root credentials
 db_root_user="root"
 db_root_passwd="abcde12345"
 
-# Database and user details
+# Database and user details variables
 db_name="devopstravel"
 db_user="codeuser"
 db_user_passwd="123456"
+db_check=$(mysqlshow "$db_name" | grep Database | awk '{print $2}')
 
 echo "Cheching if this script is run by root"
 #check if script is being run as root
@@ -20,35 +21,81 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# Function to check if package is already installed
-is_installed() {
-  dpkg -s $1 &> /dev/null
-}
-
 echo "Checking for update before install"
 # Update the package list
-apt update
+sudo apt update -qq
 
-# Check if Git is installed or not
-if ! is_installed git; then
-  echo "Installing Git"
-  apt -qq install -y git
+# Function to display progress bar
+function progress_bar() {
+  local current=$1
+  local total=$2
+  local percent=$((current * 100 / total))
+  local bar_length=30
+
+  printf "%s " "$percent" | awk '{printf("\r[%-30s] %d%%", substr("##############################", 1, ($1/10)+0.5), $1)}'
+}
+
+# Install Apache packages
+packages=("apache2" "php" "libapache2-mod-php" "php-mysql" "php-mbstring" "php-zip" "php-gd" "php-json" "php-curl" "curl" "git")
+total_count=${#packages[@]}
+package_count=0
+
+for package in "${packages[@]}"; do
+  # Check if package is already installed
+  if dpkg -s "$package" > /dev/null 2>&1; then
+    package_count=$((package_count+1))
+    progress_bar "$package_count" "$total_count"
+    echo " $package already installed."
+
+  else
+    # Install package
+    sudo apt-get install -qq "$package" > /dev/null 2>&1
+
+    # Check if installation was successful
+    if [ $? -eq 0 ]; then
+      package_count=$((package_count+1))
+      progress_bar "$package_count" "$total_count"
+      echo " $package installed successfully."
+    else
+      echo "Failed to install $package. Removing packages..."
+      sudo apt-get purge "${packages[@]}" -qq
+      exit 1
+    fi
+  fi
+done
+
+# Start and enable all services if installation was successful
+if [ $package_count -eq $total_count ]; then
+  sudo systemctl start apache2 --quiet
+  sudo systemctl enable apache2 --quiet
+  sudo systemctl start mariadb --quiet
+  sudo systemctl enable mariadb --quiet
+  echo "Services started and enabled successfully."
 fi
 
-# Check if Curl is installed or not
-if ! is_installed curl; then
-  echo "Installing Curl"
-  apt -qq install -y curl
+# Path for apache file and php
+dirconf_file="/etc/apache2/mods-enabled/dir.conf"
+php_index=$(grep DirectoryIndex $dirconfig_file | awk '{print $2}')
+
+if [ -f /var/www/html/index.html ]; then
+    echo "index.html exist"
+    mv /var/www/html/index.html /var/www/html/index.html.bk
+else
+    echo "index.html does not exist"
 fi
 
-# Check if MariaDB is installed or not
-if ! is_installed mariadb-server; then
-  echo "Installing MariaDB"
-  apt -qq install -y mariadb-server
+# Check if dir.conf file exists
+if [ ! -f "$dirconf_file" ]; then
+    echo "The dir.conf file does not exist. Please re-install"
+else
+    sed -i 's/DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/' $dirconf_file
+    echo "index.php added to the DirectoryIndex in dir.conf."
+fi
 
-# Enable and start MariaDB
-systemctl enable mariadb
-systemctl start mariadb
+if [ $php_index == "index.php" ]; then
+    echo "index.php file exist. Reloading apache2"
+    systemctl reload apache2 --quiet
+fi
 
 # Prompt for the MariaDB root password (esta parte se habilitara luego)
 #echo "Please enter the MariaDB root password:"
@@ -59,52 +106,25 @@ systemctl start mariadb
 #printf "n\n n\n y\n y\n y\n y\n" | mysql_secure_installation
 #mysql -e "SET PASSWORD FOR root@localhost = PASSWORD('$root_passwd');"
 # Ask the Database user for the password
-#echo -n "Enter the password for the database user: "
+#echo -n "Enter the password for the database user:"
 #read -s db_passwd
 #echo
 
 # Creating the database
-mysql -e "
-CREATE DATABASE IF NOT EXISTS $db_name;
-CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_passwd';
-GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';
-FLUSH PRIVILEGES ;"
-echo "Database $db_name created with user $db_user and password."
+if [ $db_check == $db_name ]; then
+   echo "Database $db_name exist"
+else
+    mysql -e "
+    CREATE DATABASE IF NOT EXISTS $db_name;
+    CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_passwd';
+    GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';
+    FLUSH PRIVILEGES ;"
+    echo "Database $db_name created with user $db_user and password."
 fi
 
-# Check if Apache is installed or not
-if ! is_installed apache2; then
-  echo "Installing  Apache"
-  apt -qq install -y apache2
-
-#Rename apache2 index.html
-mv /var/www/html/index.html /var/www/html/index.html.bk
-
-# Enable and start Apache
-systemctl enable apache2
-systemctl start apache2
-fi
-
-# Check if PHP is installed or not
-if ! is_installed php; then
- echo "Installing PHP"
-  apt -qq install -y php libapache2-mod-php php-mysql
-fi
-# Path to dir.conf file
-dirconf_file="/etc/apache2/mods-enabled/dir.conf"
-
-# Check if dir.conf file exists
-if [ ! -f "$dirconf_file" ]; then
-    echo "The dir.conf file does not exist."
-    exit 1
-fi
-
-# Modify dir.conf file
-sed -i 's/DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/' $dirconf_file
-echo "index.php added to the DirectoryIndex in dir.conf."
-
-# Restart Apache
-systemctl restart apache2
+# Reload MariaDB
+echo "Reloading mariadb"
+systemctl reload apache2 mariadb --quiet
 
 if [ -d "$repo" ]; then
     echo $repo exist
@@ -116,47 +136,33 @@ else
     git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
 fi
 
-cp -r $repo/app-295devops-travel/* /var/www/html
-mysql < bootcamp-devops-2023/app-295devops-travel/database/devopstravel.sql
-
-#Agregar apache2 al firewall ufw opcional para cada quien
-# Check if UFW firewall is installed or not
-if ! is_installed ufw; then
-  echo "Installing  UFW Firewall"
-  apt -qq install -y ufw
-  echo "
-  [WWW]
-title=Web Server
-description=Web server
-ports=80/tcp
-
-[WWW Secure]
-title=Web Server (HTTPS)
-description=Web Server (HTTPS)
-ports=443/tcp
-
-[WWW Full]
-title=Web Server (HTTP,HTTPS)
-description=Web Server (HTTP,HTTPS)
-ports=80,443/tcp
-
-[WWW Cache]
-title=Web Server (8080)
-description=Web Server (8080)
-ports=8080/tcp" > /etc/ufw/applications.d/ufw-webserver
-ufw enable
-ufw allow "WWW Full" 
-systemctl reload ufw
-
-#Restart apache2 service
-systemctl reload apache2
-
-echo "Testing if installation was successful"
-if is_installed apache2 && is_installed mariadb-server && is_installed php && is_installed git && is_installed curl; then
-  echo "LAMP installation successful!"
+if [ -f /var/www/html/index.php ]; then
+echo "file exist"
 else
-  echo "LAMP installation failed!"
+cp -r $repo/app-295devops-travel/* /var/www/html
+if
+
+# Test if php.info is successful
+php_info=$(curl -s localhost/php.info)
+if [[ $php_info == *"phpinfo"* ]]; then
+  echo "php.info test successful."
+else
+  echo "php.info test failed."
+  exit 1
 fi
+
+if [ -d /var/www/html/database ]; then
+echo "$db_name databse exist"
+else
+mysql < bootcamp-devops-2023/app-295devops-travel/database/devopstravel.sql
+fi
+
+#echo "Testing if installation was successful"
+#if is_installed apache2 && is_installed mariadb-server && is_installed php && is_installed git && is_installed curl; then
+#  echo "LAMP installation successful!"
+#else
+#  echo "LAMP installation failed!"
+#fi
 
 
 
