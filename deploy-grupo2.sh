@@ -12,9 +12,8 @@ db_root_passwd="abcde12345"
 db_name="devopstravel"
 db_user="codeuser"
 db_user_passwd="123456"
-db_check=$(mysqlshow "$db_name" | grep Database | awk '{print $2}')
 
-echo "Cheching if this script is run by root"
+echo "Checking if this script is run by root"
 #check if script is being run as root
 if [[ $EUID -ne 0 ]]; then
    echo "This script must be run as root"
@@ -99,6 +98,7 @@ if [ $php_index == "index.php" ]; then
     systemctl reload apache2 --quiet
 fi
 
+
 # Prompt for the MariaDB root password (esta parte se habilitara luego)
 #echo "Please enter the MariaDB root password:"
 #read -s root_passwd
@@ -111,6 +111,10 @@ fi
 #echo -n "Enter the password for the database user:"
 #read -s db_passwd
 #echo
+
+#Mysql variables
+db_check=$(mysqlshow "$db_name" | grep Database | awk '{print $2}')
+
 
 # Creating the database
 if [ $db_check == $db_name ]; then
