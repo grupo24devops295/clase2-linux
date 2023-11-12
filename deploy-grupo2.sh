@@ -21,7 +21,7 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-echo "Checking for update before install"
+echo "Updating packages index"
 # Update the package list
 apt update -qq
 
