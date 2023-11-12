@@ -80,7 +80,7 @@ if [ -f /var/www/html/index.html ]; then
     echo "index.html exist"
     mv /var/www/html/index.html /var/www/html/index.html.bk
 else
-    echo "index.html is now index.html.bk"
+    echo "index.html files does not exist"
 fi
 
 # Check if dir.conf file exists
