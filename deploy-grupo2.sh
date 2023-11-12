@@ -90,7 +90,6 @@ if [ ! -f "$dirconf_file" ]; then
     echo "index.php added to the DirectoryIndex in dir.conf."
 else
     echo "The dir.conf file does not exist. Please re-install"
-    exit 1
 fi
 
 if [[ $php_index == "index.php" ]]; then
