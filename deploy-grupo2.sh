@@ -85,12 +85,12 @@ fi
 
 # Check if dir.conf file exists
 if [ ! -f "$dirconf_file" ]; then
-    echo "The dir.conf file does not exist. Please re-install"
-    exit 1
-else
     cp $dirconf_file $dirconf_file.bk
     sed -i 's/DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/' $dirconf_file
     echo "index.php added to the DirectoryIndex in dir.conf."
+else
+    echo "The dir.conf file does not exist. Please re-install"
+    exit 1
 fi
 
 if [[ $php_index == "index.php" ]]; then
