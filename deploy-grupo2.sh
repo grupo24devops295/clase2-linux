@@ -49,7 +49,7 @@ for package in "${packages[@]}"; do
 
   else
     # Install package
-     apt-get install -y -qq "$package $firewall" > /dev/null 2>&1
+     apt-get install -y -qq "$package" > /dev/null 2>&1
 
     # Check if installation was successful
     if [ $? -eq 0 ]; then
