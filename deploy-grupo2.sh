@@ -35,7 +35,7 @@ function progress_bar() {
   printf "%s " "$percent" | awk '{printf("\r[%-30s] %d%%", substr("##############################", 1, ($1/10)+0.5), $1)}'
 }
 
-# Install Apache packages
+# Install Apache, MariaDB,PHP, Curl, Git packages
 packages=("apache2" "mariadb-server" "php" "libapache2-mod-php" "php-mysql" "php-mbstring" "php-zip" "php-gd" "php-json" "php-curl" "curl" "git")
 total_count=${#packages[@]}
 package_count=0
