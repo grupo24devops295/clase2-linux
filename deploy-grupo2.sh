@@ -120,7 +120,6 @@ if [ $db_check = $db_name ]; then
    echo "Database $db_name exist"
 else
     mysql -e "
-    DROP DATABSE $db_name;
     CREATE DATABASE IF NOT EXISTS $db_name;
     CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_passwd';
     GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';
