@@ -193,6 +193,6 @@ else
 fi
 
 # Restarting apache2
-systecmctl restart apache2
+systemctl restart apache2
 echo "295DevOps Travel installation successfull"
 echo "Please go to http://localhost to test"
