@@ -118,6 +118,14 @@ db_check=$(mysqlshow "$db_name" | grep Database | awk '{print $2}')
 # Creating the database
 if [ $db_check = $db_name ]; then
    echo "Database $db_name exist"
+ mysql -e "
+    DROP DATABASE $db_name;
+    CREATE DATABASE IF NOT EXISTS $db_name;
+    CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_passwd';
+    GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';
+    FLUSH PRIVILEGES ;"
+    echo "Database $db_name created with user $db_user and password."
+
 else
     mysql -e "
     CREATE DATABASE IF NOT EXISTS $db_name;
@@ -140,7 +148,7 @@ else
     sleep 1
     git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
 fi
-# Changing bkking table to allow more digits
+# Changing booking table to allow more digits
 db_src="/home/vladram/devops295/clase2-linux/bootcamp-devops-2023/app-295devops-travel/database"
 cd $db_src
 sed -i 's/`phone` int(11) DEFAULT NULL,/`phone` varchar(15) DEFAULT NULL,/' devopstravel.sql
@@ -164,7 +172,7 @@ else
 fi
 
 #Database test and copy
-TABLE_NAME="booking"
+TABLE_NAME=booking
 TABLE_EXIST=$(printf 'SHOW TABLES LIKE "%s"' "$TABLE_NAME")
 #DROP_DB=$(printf 'DROP DATABASE $db_name;')
 # Execute the query and check the result
@@ -173,8 +181,8 @@ if [[ $(mysql -u $db_root_user -p -e "$TABLE_EXIST" $db_name) ]]; then
     echo -e "${LGREEN}Table $TABLE_NAME exists.${NC}"
 else
     echo -e "${LRED}Table $TABLE_NAME does not exist.${NC}"
-    cd "${db_src}"
-    mysql $db_name < "devopstravel.sql"
+    cd ${db_src}
+    mysql < devopstravel.sql
     systemctl restart mariadb
 fi
 
