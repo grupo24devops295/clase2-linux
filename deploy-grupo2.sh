@@ -116,7 +116,7 @@ db_check=$(mysqlshow "$db_name" | grep Database | awk '{print $2}')
 
 
 # Creating the database
-if [ $db_check = $db_name ]; then
+if [[ $db_check == $db_name ]]; then
    echo "Database $db_name exist"
  mysql -e "
     DROP DATABASE $db_name;
@@ -125,7 +125,6 @@ if [ $db_check = $db_name ]; then
     GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';
     FLUSH PRIVILEGES ;"
     echo "Database $db_name created with user $db_user and password."
-
 else
     mysql -e "
     CREATE DATABASE IF NOT EXISTS $db_name;
@@ -148,10 +147,11 @@ else
     sleep 1
     git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
 fi
+
 # Changing booking table to allow more digits
 db_src="/home/vladram/devops295/clase2-linux/bootcamp-devops-2023/app-295devops-travel/database"
 cd $db_src
-sed -i 's/`phone` int(11) DEFAULT NULL,/`phone` varchar(15) DEFAULT NULL,/' devopstravel.sql
+sed -i 's/`phone` int(11) DEFAULT NULL,/`phone` varchar(15) DEFAULT NULL,/g' devopstravel.sql
 
 # Copy and verify app data exist in apache root directory
 src="/home/vladram/devops295/clase2-linux/bootcamp-devops-2023/app-295devops-travel"
@@ -162,6 +162,9 @@ else
 	cd $src
 	cp -R ./* "${dest}"
 fi
+
+# Adding database password to config.php
+sed -i "s/\$dbPassword \= \"\";/\$dbPassword \= \"$db_passwd\";/" /var/www/html/config.php 
 
 # Test if php.info is successful
 php_info=$(curl -s localhost/info.php | grep phpinfo)
