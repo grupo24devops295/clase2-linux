@@ -42,26 +42,26 @@ package_count=0
 
 for package in "${packages[@]}"; do
   # Check if package is already installed
-  if dpkg -s "$package" > /dev/null 2>&1; then
+if dpkg -s "$package" > /dev/null 2>&1; then
     package_count=$((package_count+1))
     progress_bar "$package_count" "$total_count"
     echo " $package already installed."
 
-  else
-    # Install package
-     apt-get install -y -qq "$package" > /dev/null 2>&1
+else
+# Install package
+apt-get install -y -qq "$package" > /dev/null 2>&1
 
-    # Check if installation was successful
-    if [ $? -eq 0 ]; then
-      package_count=$((package_count+1))
-      progress_bar "$package_count" "$total_count"
-      echo "$package installed successfully."
-    else
-      echo "Failed to install $package. Removing packages..."
-      apt-get -y purge "${packages[@]}" -qq
-      exit 1
+# Check if installation was successful
+if [ $? -eq 0 ]; then
+    package_count=$((package_count+1))
+    progress_bar "$package_count" "$total_count"
+    echo "$package installed successfully."
+else
+    echo "Failed to install $package. Removing packages..."
+    apt-get -y purge "${packages[@]}" -qq
+    exit 1
     fi
-  fi
+   fi
 done
 
 # Start and enable all services if installation was successful
@@ -118,7 +118,7 @@ db_check=$(mysqlshow "$db_name" | grep Database | awk '{print $2}')
 # Creating the database
 if [[ $db_check == $db_name ]]; then
    echo "Database $db_name exist"
- mysql -e "
+    mysql -e "
     DROP DATABASE $db_name;
     CREATE DATABASE IF NOT EXISTS $db_name;
     CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_passwd';
@@ -157,10 +157,10 @@ sed -i 's/`phone` int(11) DEFAULT NULL,/`phone` varchar(15) DEFAULT NULL,/g' dev
 src="/home/vladram/devops295/clase2-linux/bootcamp-devops-2023/app-295devops-travel"
 dest="/var/www/html/"
 if [ -f $dest/index.php ]; then
-        echo "file exist"
+    echo "file exist"
 else
-	cd $src
-	cp -R ./* "${dest}"
+    cd $src
+    cp -R ./* "${dest}"
 fi
 
 # Adding database password to config.php
@@ -191,16 +191,16 @@ fi
 
 dpkg -s ufw > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-  echo "ufw Firewall is installed"
-  ufw --force enable
-  ufw allow "WWW Full"
-  ufw --force reload
+    echo "ufw Firewall is installed"
+    ufw --force enable
+    ufw allow "WWW Full"
+    ufw --force reload
 else
-  echo "Installing  UFW Firewall"
-  apt install -y ufw -qq
-  ufw --force enable
-  ufw allow "WWW Full"
-  ufw --force reload
+    echo "Installing  UFW Firewall"
+    apt install -y ufw -qq
+    ufw --force enable
+    ufw allow "WWW Full"
+    ufw --force reload
 fi
 
 # Restarting apache2
