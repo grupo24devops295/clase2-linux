@@ -177,9 +177,7 @@ fi
 #Database test and copy
 TABLE_NAME=booking
 TABLE_EXIST=$(printf 'SHOW TABLES LIKE "%s"' "$TABLE_NAME")
-#DROP_DB=$(printf 'DROP DATABASE $db_name;')
 # Execute the query and check the result
-
 if [[ $(mysql -u $db_root_user -p -e "$TABLE_EXIST" $db_name) ]]; then
     echo -e "${LGREEN}Table $TABLE_NAME exists.${NC}"
 else
