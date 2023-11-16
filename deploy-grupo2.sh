@@ -12,7 +12,7 @@ db_root_user="root"
 db_name="devopstravel"
 db_user="codeuser"
 #db_user_passwd="123456"
-dirconf_file="/etc/apache2/mods-enabled/dir.conf"
+dirconf_file="/etc/apache2/mods-available/dir.conf"
 
 echo "Checking if this script is run by root"
 #check if script is being run as root
