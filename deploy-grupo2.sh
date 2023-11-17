@@ -8,23 +8,23 @@ repo="bootcamp-devops-2023"
 db_root_user="root"
 #db_root_passwd="abcde12345"
 
-# Database and user details variables
+# Database and user details variables.
 db_name="devopstravel"
 db_user="codeuser"
 #db_user_passwd="123456"
 
 echo "Checking if this script is run by root"
-#check if script is being run as root
+#check if script is being run as root.
 if [[ $EUID -ne 0 ]]; then
    echo "This script must be run as root"
    exit 1
 fi
 
 echo "Updating packages index"
-# Update the package list
+# Update the package list.
 apt update -qq
 
-# Function to display progress bar
+# Function to display progress bar.
 function progress_bar() {
   local current=$1
   local total=$2
@@ -34,13 +34,13 @@ function progress_bar() {
   printf "%s " "$percent" | awk '{printf("\r[%-30s] %d%%", substr("##############################", 1, ($1/10)+0.5), $1)}'
 }
 
-# Install Apache, MariaDB,PHP, Curl, Git packages
+# Install Apache, MariaDB,PHP, Curl, Git packages.
 packages=("apache2" "mariadb-server" "php" "libapache2-mod-php" "php-mysql" "php-mbstring" "php-zip" "php-gd" "php-json" "php-curl" "curl" "git")
 total_count=${#packages[@]}
 package_count=0
 
 for package in "${packages[@]}"; do
-  # Check if package is already installed
+# Check if package is already installed.
 if dpkg -s "$package" > /dev/null 2>&1; then
     package_count=$((package_count+1))
     progress_bar "$package_count" "$total_count"
@@ -50,7 +50,7 @@ else
 # Install package
 apt-get install -y -qq "$package" > /dev/null 2>&1
 
-# Check if installation was successful
+# Check if installation was successful.
 if [ $? -eq 0 ]; then
     package_count=$((package_count+1))
     progress_bar "$package_count" "$total_count"
@@ -63,7 +63,7 @@ else
    fi
 done
 
-# Start and enable all services if installation was successful
+# Start and enable all services if installation was successful.
 if [ $package_count -eq $total_count ]; then
   sudo systemctl start apache2 --quiet
   sudo systemctl enable apache2 --quiet
@@ -72,9 +72,10 @@ if [ $package_count -eq $total_count ]; then
   echo "Services started and enabled successfully."
 fi
 
-# Path for apache file and php
+# Path for apache file and php.
 php_index="grep DirectoryIndex $dirconfig_file | awk '{print $2}'"
 
+# Check if index.html exist and move it to avoid conflicts.
 if [ -f /var/www/html/index.html ]; then
     echo "index.html exist"
     mv /var/www/html/index.html /var/www/html/index.html.bk
@@ -82,7 +83,7 @@ else
     echo "index.html files does not exist"
 fi
 
-# Check if dir.conf file exists
+# Check if dir.conf file exists and backup the file before editing.
 dirconf_path="/etc/apache2/mods-available/"
 dirconf_file="dir.conf"
 cd $dirconf_path
@@ -101,7 +102,7 @@ if [[ $php_index == "index.php" ]]; then
 fi
 
 
-# Prompt for the MariaDB root password (esta parte se habilitara luego)
+# Prompt for the MariaDB root password.
 echo "Please enter the MariaDB root password:"
 read -s root_passwd
 
@@ -109,16 +110,15 @@ echo "Configuring MariaDB with the provided root password"
 
 printf "n\n n\n y\n y\n y\n y\n" | mysql_secure_installation
 mysql -e "SET PASSWORD FOR root@localhost = PASSWORD('$root_passwd');"
-# Ask the Database user for the password
+# Ask the Database user for the password.
 echo -n "Enter the password for the database user:"
 read -s db_passwd
 echo
 
-#Mysql variables
+# Mysql variables.
 db_check=$(mysqlshow "$db_name" | grep Database | awk '{print $2}')
 
-
-# Creating the database
+# Creating the database.
 if [[ $db_check == $db_name ]]; then
    echo "Database $db_name exist"
     mysql -e "
@@ -137,7 +137,7 @@ else
     echo "Database $db_name created with user $db_user and password."
 fi
 
-# Reload MariaDB
+# Reload MariaDB.
 echo "Restarting mariadb"
 systemctl restart apache2 mariadb --quiet
 
@@ -151,12 +151,12 @@ else
     git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
 fi
 
-# Changing booking table to allow more digits
+# Changing booking table to allow more digits.
 db_src="/home/vladram/devops295/clase2-linux/bootcamp-devops-2023/app-295devops-travel/database"
 cd $db_src
 sed -i 's/`phone` int(11) DEFAULT NULL,/`phone` varchar(15) DEFAULT NULL,/g' devopstravel.sql
 
-# Copy and verify app data exist in apache root directory
+# Copy and verify app data exist in apache root directory.
 src="/home/vladram/devops295/clase2-linux/bootcamp-devops-2023/app-295devops-travel"
 dest="/var/www/html/"
 if [ -f $dest/index.php ]; then
@@ -166,10 +166,10 @@ else
     cp -R ./* "${dest}"
 fi
 
-# Adding database password to config.php
+# Adding database password to config.php.
 sed -i "s/\$dbPassword \= \"\";/\$dbPassword \= \"$db_passwd\";/" /var/www/html/config.php 
 
-# Test if php.info is successful
+# Test if php.info is successful.
 php_info=$(curl -s localhost/info.php | grep phpinfo)
 if [[ $php_info == *"phpinfo"* ]]; then
     echo "info.php test successful."
@@ -177,10 +177,11 @@ else
     echo "info.php test failed."
 fi
 
-#Database test and copy
+# Database test and copy.
 TABLE_NAME=booking
 TABLE_EXIST=$(printf 'SHOW TABLES LIKE "%s"' "$TABLE_NAME")
-# Execute the query and check the result
+
+# Execute the query and check the result.
 if [[ $(mysql -u $db_root_user -p -e "$TABLE_EXIST" $db_name) ]]; then
     echo -e "${LGREEN}Table $TABLE_NAME exists.${NC}"
 else
@@ -190,6 +191,7 @@ else
     systemctl restart mariadb
 fi
 
+# Check if firewall ufw is installed and active.
 dpkg -s ufw > /dev/null 2>&1
 if [ $? -eq 0 ]; then
     echo "ufw Firewall is installed"
@@ -204,7 +206,7 @@ else
     ufw --force reload
 fi
 
-# Restarting apache2
+# Restarting apache2.
 systemctl restart apache2
 echo "295DevOps Travel installation successfull"
 echo "Please go to http://localhost to test"
