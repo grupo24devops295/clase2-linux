@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 set -e
 
 # Repository variable
@@ -12,7 +12,6 @@ db_root_user="root"
 db_name="devopstravel"
 db_user="codeuser"
 #db_user_passwd="123456"
-dirconf_file="/etc/apache2/mods-available/dir.conf"
 
 echo "Checking if this script is run by root"
 #check if script is being run as root
@@ -84,12 +83,16 @@ else
 fi
 
 # Check if dir.conf file exists
-if [ ! -f "$dirconf_file" ]; then
-    cp $dirconf_file $dirconf_file.bk
-    sed -i 's/DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/' $dirconf_file
+dirconf_path="/etc/apache2/mods-available/"
+dirconf_file="dir.conf"
+cd $dirconf_path
+if [ -f "${dirconf_file}" ]; then
+    echo "$dirconf_file exist creating a backup before editing."
+    cp "${dirconf_file}" "${dirconf_file}.bk"
+    sed -i "s/DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/g" "${dirconf_file}"
     echo "index.php added to the DirectoryIndex in dir.conf."
 else
-    echo "The dir.conf file does not exist. Please re-install"
+    echo "The dir.conf file does not exist. Please re-install apache2."
 fi
 
 if [[ $php_index == "index.php" ]]; then
