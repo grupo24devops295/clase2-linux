@@ -1,8 +1,6 @@
 #!/bin/bash -x
 set -e
 
-# Repository variable
-repo="bootcamp-devops-2023"
 
 # MySQL root credentials
 db_root_user="root"
@@ -141,14 +139,36 @@ fi
 echo "Restarting mariadb"
 systemctl restart apache2 mariadb --quiet
 
-if [ -d "$repo" ]; then
-    echo $repo exist
-    cd $repo
-    git pull
+# Check if repo exis before cloning
+#if [ -d "$repo" ]; then
+#    echo $repo exist
+#    cd $repo
+#    git pull
+#else
+#    echo "Repo does not exist, clonning the repo"
+#    sleep 1
+#    git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
+#fi
+
+# Checking if on main branch before clonning the repo
+repo="bootcamp-devops-2023"
+branch="$(git symbolic-ref --short HEAD)"
+cd /home/vladram/devops295/clase2-linux 
+if [[ "$branch" = "main" ]]; then
+    echo "Currently on main branch"
+# Check if the repo exist before cloning.
+  if [[ -d "$repo" ]]; then
+      echo $repo exist
+      cd $repo
+      git pull
+  else
+      echo "$repo does not exist, clonning the repo"
+      sleep 1
+      git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
+  fi
 else
-    echo "Repo does not exist, clonning the repo"
-    sleep 1
-    git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
+    echo "Reposistory is not no the main branch."
+    exit 1
 fi
 
 # Changing booking table to allow more digits.
