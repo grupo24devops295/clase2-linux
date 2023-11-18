@@ -106,7 +106,7 @@ read -s root_passwd
 
 echo "Configuring MariaDB with the provided root password"
 
-printf "n\n n\n y\n y\n y\n y\n" | mysql_secure_installation
+printf "n\n n\n y\n y\n y\n y\n" | mysql_secure_installation 2>/dev/null
 mysql -e "SET PASSWORD FOR root@localhost = PASSWORD('$root_passwd');"
 # Ask the Database user for the password.
 echo -n "Enter the password for the database user:"
@@ -139,17 +139,6 @@ fi
 echo "Restarting mariadb"
 systemctl restart apache2 mariadb --quiet
 
-# Check if repo exis before cloning
-#if [ -d "$repo" ]; then
-#    echo $repo exist
-#    cd $repo
-#    git pull
-#else
-#    echo "Repo does not exist, clonning the repo"
-#    sleep 1
-#    git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
-#fi
-
 # Repo variables
 repo="bootcamp-devops-2023"
 cur_dir="/home/vladram/devops295/clase2-linux"
@@ -158,19 +147,19 @@ cur_dir="/home/vladram/devops295/clase2-linux"
 cd $cur_dir
 branch="$(git symbolic-ref --short HEAD)"
 if [[ "$branch" = "main" ]]; then
-	echo "Currently on main branch"
-	if [[ -d "$repo" ]]; then
-		echo $repo exist
-		cd $repo
-		git pull
-	else
-		echo "$repo does not exist, clonning the repo"
-		sleep 1
-		git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
-	fi
+    echo "Currently on main branch"
+    if [[ -d "$repo" ]]; then
+      echo $repo exist
+      cd $repo
+      git pull
+    else
+      echo "$repo does not exist, clonning the repo"
+      sleep 1
+      git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
+    fi
 else
-	echo "Reposistory is not no the main branch."
-	exit 1
+    echo "Reposistory is not no the main branch."
+    exit 1
 fi
 
 # Changing booking table to allow more digits.
