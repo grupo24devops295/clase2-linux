@@ -1,5 +1,5 @@
 #!/bin/bash -x
-set -e
+#set -e
 
 
 # MySQL root credentials
@@ -114,7 +114,7 @@ read -s db_passwd
 echo
 
 # Mysql variables.
-db_check=$(mysqlshow "$db_name" | grep Database | awk '{print $2}')
+db_check="$(mysqlshow "$db_name" | grep Database | awk '{print $2}')"
 
 # Creating the database.
 if [[ $db_check == $db_name ]]; then
@@ -150,25 +150,27 @@ systemctl restart apache2 mariadb --quiet
 #    git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
 #fi
 
-# Checking if on main branch before clonning the repo
+# Repo variables
 repo="bootcamp-devops-2023"
+cur_dir="/home/vladram/devops295/clase2-linux"
+
+# Checking if on main branch before clonning the repo
+cd $cur_dir
 branch="$(git symbolic-ref --short HEAD)"
-cd /home/vladram/devops295/clase2-linux 
 if [[ "$branch" = "main" ]]; then
-    echo "Currently on main branch"
-# Check if the repo exist before cloning.
-  if [[ -d "$repo" ]]; then
-      echo $repo exist
-      cd $repo
-      git pull
-  else
-      echo "$repo does not exist, clonning the repo"
-      sleep 1
-      git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
-  fi
+	echo "Currently on main branch"
+	if [[ -d "$repo" ]]; then
+		echo $repo exist
+		cd $repo
+		git pull
+	else
+		echo "$repo does not exist, clonning the repo"
+		sleep 1
+		git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
+	fi
 else
-    echo "Reposistory is not no the main branch."
-    exit 1
+	echo "Reposistory is not no the main branch."
+	exit 1
 fi
 
 # Changing booking table to allow more digits.
