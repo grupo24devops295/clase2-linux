@@ -1,7 +1,6 @@
 #!/bin/bash -x
 #set -e
 
-
 # MySQL root credentials
 db_root_user="root"
 #db_root_passwd="abcde12345"
@@ -63,11 +62,11 @@ done
 
 # Start and enable all services if installation was successful.
 if [ $package_count -eq $total_count ]; then
-  sudo systemctl start apache2 --quiet
-  sudo systemctl enable apache2 --quiet
-  sudo systemctl start mariadb --quiet
-  sudo systemctl enable mariadb --quiet
-  echo "Services started and enabled successfully."
+    systemctl start apache2 --quiet
+    systemctl enable apache2 --quiet
+    systemctl start mariadb --quiet
+    systemctl enable mariadb --quiet
+    echo "Services started and enabled successfully."
 fi
 
 # Path for apache file and php.
@@ -99,7 +98,6 @@ if [[ $php_index == "index.php" ]]; then
     systemctl reload apache2 --quiet
 fi
 
-
 # Prompt for the MariaDB root password.
 echo "Please enter the MariaDB root password:"
 read -s root_passwd
@@ -118,7 +116,7 @@ db_check="$(mysqlshow "$db_name" | grep Database | awk '{print $2}')"
 
 # Creating the database.
 if [[ $db_check == $db_name ]]; then
-   echo "Database $db_name exist"
+    echo "Database $db_name exist"
     mysql -e "
     DROP DATABASE $db_name;
     CREATE DATABASE IF NOT EXISTS $db_name;
