@@ -3,12 +3,10 @@
 
 # MySQL root credentials
 db_root_user="root"
-#db_root_passwd="abcde12345"
 
 # Database and user details variables.
 db_name="devopstravel"
 db_user="codeuser"
-#db_user_passwd="123456"
 
 echo "Checking if this script is run by root"
 #check if script is being run as root.
@@ -26,9 +24,9 @@ function progress_bar() {
   local current=$1
   local total=$2
   local percent=$((current * 100 / total))
-  local bar_length=30
+  local bar_length=100
 
-  printf "%s " "$percent" | awk '{printf("\r[%-30s] %d%%", substr("##############################", 1, ($1/10)+0.5), $1)}'
+  printf "%s " "$percent" | awk '{printf("\r[%-30s] %d%%", substr("##############################", 1, ($1/20)+0.5), $1)}'
 }
 
 # Install Apache, MariaDB,PHP, Curl, Git packages.
@@ -38,26 +36,25 @@ package_count=0
 
 for package in "${packages[@]}"; do
 # Check if package is already installed.
-if dpkg -s "$package" > /dev/null 2>&1; then
-    package_count=$((package_count+1))
-    progress_bar "$package_count" "$total_count"
-    echo " $package already installed."
+    if dpkg -s "$package" > /dev/null 2>&1; then
+        package_count=$((package_count+1))
+        progress_bar "$package_count" "$total_count"
+        echo " $package already installed."
+    else
+        # Install package
+        apt-get install -y -qq "$package" > /dev/null 2>&1
 
-else
-# Install package
-apt-get install -y -qq "$package" > /dev/null 2>&1
-
-# Check if installation was successful.
-if [ $? -eq 0 ]; then
-    package_count=$((package_count+1))
-    progress_bar "$package_count" "$total_count"
-    echo "$package installed successfully."
-else
-    echo "Failed to install $package. Removing packages..."
-    apt-get -y purge "${packages[@]}" -qq
-    exit 1
+        # Check if installation was successful.
+        if [ $? -eq 0 ]; then
+            package_count=$((package_count+1))
+            progress_bar "$package_count" "$total_count"
+            echo "$package installed successfully."
+        else
+            echo "Failed to install $package. Removing packages..."
+            apt-get -y purge "${packages[@]}" -qq
+            exit 1
+        fi
     fi
-   fi
 done
 
 # Start and enable all services if installation was successful.
@@ -69,9 +66,6 @@ if [ $package_count -eq $total_count ]; then
     echo "Services started and enabled successfully."
 fi
 
-# Path for apache file and php.
-php_index="grep DirectoryIndex $dirconfig_file | awk '{print $2}'"
-
 # Check if index.html exist and move it to avoid conflicts.
 if [ -f /var/www/html/index.html ]; then
     echo "index.html exist"
@@ -81,8 +75,9 @@ else
 fi
 
 # Check if dir.conf file exists and backup the file before editing.
+dirconfig_file="/etc/apache2/mods-available/dir.conf"
 dirconf_path="/etc/apache2/mods-available/"
-dirconf_file="dir.conf"
+php_index=$(grep DirectoryIndex "${dirconfig_file}" | awk '{print $2}')
 cd $dirconf_path
 if [ -f "${dirconf_file}" ]; then
     echo "$dirconf_file exist creating a backup before editing."
@@ -104,7 +99,14 @@ read -s root_passwd
 
 echo "Configuring MariaDB with the provided root password"
 
-printf "n\n n\n y\n y\n y\n y\n" | mysql_secure_installation 2>/dev/null
+#printf "n\n n\n y\n y\n y\n y\n" | mysql_secure_installation 2>/dev/null
+printf "n
+ n
+ y
+ y
+ y
+ y
+" | mysql_secure_installation 2>/dev/null
 mysql -e "SET PASSWORD FOR root@localhost = PASSWORD('$root_passwd');"
 # Ask the Database user for the password.
 echo -n "Enter the password for the database user:"
@@ -138,35 +140,31 @@ echo "Restarting mariadb"
 systemctl restart apache2 mariadb --quiet
 
 # Repo variables
-repo="bootcamp-devops-2023"
-cur_dir="/home/vladram/devops295/clase2-linux"
+repo="https://github.com/vramirez0113/bootcamp-devops-2023.git"
+#branch="clase2-linux-bash"
 
-# Checking if on main branch before clonning the repo
-cd $cur_dir
-branch="$(git symbolic-ref --short HEAD)"
-if [[ "$branch" = "main" ]]; then
-    echo "Currently on main branch"
-    if [[ -d "$repo" ]]; then
-      echo $repo exist
-      cd $repo
-      git pull
-    else
-      echo "$repo does not exist, clonning the repo"
-      sleep 1
-      git clone -b clase2-linux-bash https://github.com/roxsross/bootcamp-devops-2023.git
-    fi
+# Config Git account
+git config --global user.name "vramirez0113"
+git config --global user.email "vlakstarit@gmail.com"
+
+# Check if app repo exist before cloning
+if [ -d "$repo" ]; then
+    echo $repo exist
+    cd $repo
+    git pull
 else
-    echo "Reposistory is not no the main branch."
-    exit 1
+    echo "Repo does not exist, clonning the repo"
+    sleep 1
+    git clone -b clase2-linux-bash $repo
 fi
 
 # Changing booking table to allow more digits.
-db_src="/home/vladram/devops295/clase2-linux/bootcamp-devops-2023/app-295devops-travel/database"
+db_src="$PWD/bootcamp-devops-2023/app-295devops-travel/database"
 cd $db_src
 sed -i 's/`phone` int(11) DEFAULT NULL,/`phone` varchar(15) DEFAULT NULL,/g' devopstravel.sql
 
 # Copy and verify app data exist in apache root directory.
-src="/home/vladram/devops295/clase2-linux/bootcamp-devops-2023/app-295devops-travel"
+src="$PWD/bootcamp-devops-2023/app-295devops-travel"
 dest="/var/www/html/"
 if [ -f $dest/index.php ]; then
     echo "file exist"
@@ -190,7 +188,7 @@ fi
 TABLE_NAME=booking
 TABLE_EXIST=$(printf 'SHOW TABLES LIKE "%s"' "$TABLE_NAME")
 
-# Execute the query and check the result.
+# Check if database exist before copying.
 if [[ $(mysql -u $db_root_user -p -e "$TABLE_EXIST" $db_name) ]]; then
     echo -e "${LGREEN}Table $TABLE_NAME exists.${NC}"
 else
