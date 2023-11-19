@@ -8,6 +8,9 @@ db_root_user="root"
 db_name="devopstravel"
 db_user="codeuser"
 
+# Script directory
+script_dir=$(pwd)
+
 echo "Checking if this script is run by root"
 #check if script is being run as root.
 if [[ $EUID -ne 0 ]]; then
@@ -57,6 +60,15 @@ for package in "${packages[@]}"; do
     fi
 done
 
+# Start and enable all services if installation was successful.
+if [ $package_count -eq $total_count ]; then
+    systemctl start apache2 --quiet
+    systemctl enable apache2 --quiet
+    systemctl start mariadb --quiet
+    systemctl enable mariadb --quiet
+    echo "Services started and enabled successfully."
+fi
+
 # Repo variables
 repo="https://github.com/vramirez0113/bootcamp-devops-2023.git"
 repo_dir="~/bootcam-devops-2023"
@@ -75,16 +87,6 @@ else
     echo "Repo does not exist, clonning the repo"
     sleep 1
     git clone -b clase2-linux-bash $repo
-fi
-
-
-# Start and enable all services if installation was successful.
-if [ $package_count -eq $total_count ]; then
-    systemctl start apache2 --quiet
-    systemctl enable apache2 --quiet
-    systemctl start mariadb --quiet
-    systemctl enable mariadb --quiet
-    echo "Services started and enabled successfully."
 fi
 
 # Prompt for the MariaDB root password.
@@ -178,7 +180,8 @@ if [ -f "${dirconf_file}" ]; then
 fi 
 
 # Changing booking table to allow more digits.
-db_src="~/bootcamp-devops-2023/app-295devops-travel/database"
+cd $script_dir
+db_src="${script_dir}"/bootcamp-devops-2023/app-295devops-travel/database
 cd $db_src
 sed -i 's/`phone` int(11) DEFAULT NULL,/`phone` varchar(15) DEFAULT NULL,/g' devopstravel.sql
 
@@ -213,7 +216,9 @@ fi
 dpkg -s ufw > /dev/null 2>&1
 if [ $? -eq 0 ]; then
     echo "ufw Firewall is installed Creating profile for apache2"
-    echo "[WWW]
+    cat > ufw-webserver <<- EOF
+    # /etc/ufw/applications.d/ufw-webserver
+    [WWW]
     title=Web Server
     description=Web server
     ports=80/tcp
@@ -232,8 +237,11 @@ if [ $? -eq 0 ]; then
     title=Web Server (8080)
     description=Web Server (8080)
     ports=8080/tcp
-    " > /etc/applications.d/ufw-webserver
-# Enabling apache2 firewall profile.
+    EOF 
+    # Copying ufw-webserver profile to ufw applications directory.
+    cp ufw-webserver /etc/ufw/applications.d/ufw-webserver
+
+    # Enabling apache2 firewall profile.
     ufw --force enable
     ufw allow "WWW Full"
     ufw --force reload
