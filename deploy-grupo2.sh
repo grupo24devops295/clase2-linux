@@ -216,8 +216,7 @@ fi
 dpkg -s ufw > /dev/null 2>&1
 if [ $? -eq 0 ]; then
     echo "ufw Firewall is installed Creating profile for apache2"
-    cat > ufw-webserver <<- EOF
-    # /etc/ufw/applications.d/ufw-webserver
+    { echo
     [WWW]
     title=Web Server
     description=Web server
@@ -236,10 +235,9 @@ if [ $? -eq 0 ]; then
     [WWW Cache]
     title=Web Server (8080)
     description=Web Server (8080)
-    ports=8080/tcp
-    EOF 
+    ports=8080/tcp } > /etc/ufw/applications.d/ufw-webserver
     # Copying ufw-webserver profile to ufw applications directory.
-    cp ufw-webserver /etc/ufw/applications.d/ufw-webserver
+    #cp ufw-webserver /etc/ufw/applications.d/ufw-webserver
 
     # Enabling apache2 firewall profile.
     ufw --force enable
