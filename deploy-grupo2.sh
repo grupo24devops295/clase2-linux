@@ -29,7 +29,7 @@ function progress_bar() {
   local percent=$((current * 100 / total))
   local bar_length=100
 
-  printf "%s " "$percent" | awk '{printf("\r[%-30s] %d%%", substr("##############################", 1, ($1/20)+0.5), $1)}'
+  printf "%s " "$percent" | awk '{printf("\r[%-30s] %d%%", substr("##############################", 1, ($1/5)+0.5), $1)}'
 }
 
 # Install Apache, MariaDB,PHP, Curl, Git packages.
@@ -186,7 +186,7 @@ cd $db_src
 sed -i 's/`phone` int(11) DEFAULT NULL,/`phone` varchar(15) DEFAULT NULL,/g' devopstravel.sql
 
 # Copy and verify app data exist in apache root directory.
-src="~/bootcamp-devops-2023/app-295devops-travel"
+src="${script_dir}"/bootcamp-devops-2023/app-295devops-travel
 dest="/var/www/html/"
 if [ -f $dest/index.php ]; then
     echo "file exist"
