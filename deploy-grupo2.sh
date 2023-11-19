@@ -129,7 +129,7 @@ if [ -f /var/www/html/index.html ]; then
     echo "index.html exist"
     mv /var/www/html/index.html /var/www/html/index.html.bk
 else
-      if [ -f /var/www/html/index.html.bk]; then
+      if [ -f /var/www/html/index.html.bk ]; then
       echo "index.html backed up file exist"
     else
         echo "index.html does not exist"
@@ -154,7 +154,7 @@ else
     #    echo "index.php file exist. Reloading apache2"
     #    systemctl reload apache2 --quiet
     #fi
-    exit 1
+    #exit 1
 fi 
 
 # Repo variables
