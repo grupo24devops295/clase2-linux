@@ -1,6 +1,11 @@
 #!/bin/bash
 #set -e
 
+#Colors
+LRED='\033[1;31m'
+LGREEN='\033[1;32m'
+NC='\033[0m'
+
 # MySQL root credentials
 DB_ROOT_USER="root"
 
@@ -268,7 +273,7 @@ systemctl restart apache2 mariadb > /dev/null 2>&1
 # Collect information about installation success or failure
 WEBHOOK_URL="https://discordapp.com/api/webhooks/1175907476839874681/MfOT4N73ILoLi8uLAOrn5FGqGOZ9oMWYkfTnyTBE2GbKd9Qr-2vTeVzJ7MxdDzI2L1et"
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}295DevOps Travel installacion successfull.${NC}"
+    echo -e "${LGREEN}295DevOps Travel installation successfull.${NC}"
     message="295DevOps Travel installation successfull."
 else
     echo -e "${LRED}295DevOps Travel installation Failed.${NC}"
@@ -277,3 +282,48 @@ fi
 
 # Send Discord notification to my personal deploy-channel
 curl -X POST -H "Content-Type: application/json" -d "{\"content\":\"$message\"}" "$WEBHOOK_URL"
+
+# Send Notification to DevOps295 Discor Channel
+# Configura el token de acceso de tu bot de Discord
+#DISCORD=""
+
+# Verifica si se proporcionó el argumento del directorio del repositorio
+if [ $# -ne 1 ]; then
+  echo "Uso: $0 <ruta_al_repositorio>"
+  exit 1
+fi
+
+# Cambia al directorio del repositorio
+cd "$1"
+
+# Obtiene el nombre del repositorio
+REPO_NAME=$(basename $(git rev-parse --show-toplevel))
+# Obtiene la URL remota del repositorio
+REPO_URL=$(git remote get-url origin)
+WEB_URL="localhost"
+# Realiza una solicitud HTTP GET a la URL
+HTTP_STATUS=$(curl -Is "$WEB_URL" | head -n 1)
+
+# Verifica si la respuesta es 200 OK (puedes ajustar esto según tus necesidades)
+if [[ "$HTTP_STATUS" == *"200 OK"* ]]; then
+  # Obtén información del repositorio
+    DEPLOYMENT_INFO2="Despliegue del repositorio $REPO_NAME: "
+    DEPLOYMENT_INFO="La página web $WEB_URL está en línea."
+    COMMIT="Commit: $(git rev-parse --short HEAD)"
+    AUTHOR="Autor: $(git log -1 --pretty=format:'%an')"
+    DESCRIPTION="Descripción: $(git log -1 --pretty=format:'%s')"
+else
+  DEPLOYMENT_INFO="La página web $WEB_URL no está en línea."
+fi
+
+# Obtén información del repositorio
+
+
+# Construye el mensaje
+MESSAGE="$DEPLOYMENT_INFO2\n$DEPLOYMENT_INFO\n$COMMIT\n$AUTHOR\n$REPO_URL\n$DESCRIPTION"
+
+# Envía el mensaje a Discord utilizando la API de Discord
+curl -X POST -H "Content-Type: application/json" \
+     -d '{
+       "content": "'"${MESSAGE}"'"
+     }' "$DISCORD"
