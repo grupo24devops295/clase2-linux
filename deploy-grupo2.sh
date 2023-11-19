@@ -129,7 +129,11 @@ if [ -f /var/www/html/index.html ]; then
     echo "index.html exist"
     mv /var/www/html/index.html /var/www/html/index.html.bk
 else
-    echo "index.html files does not exist"
+      if [ -f /var/www/html/index.html.bk]; then
+      echo "index.html backed up file exist"
+    else
+        echo "index.html does not exist"
+    fi
 fi
 
 # Check if dir.conf file exists and backup the file before editing.
