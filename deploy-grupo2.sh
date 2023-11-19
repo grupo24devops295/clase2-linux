@@ -66,33 +66,6 @@ if [ $package_count -eq $total_count ]; then
     echo "Services started and enabled successfully."
 fi
 
-# Check if index.html exist and move it to avoid conflicts.
-if [ -f /var/www/html/index.html ]; then
-    echo "index.html exist"
-    mv /var/www/html/index.html /var/www/html/index.html.bk
-else
-    echo "index.html files does not exist"
-fi
-
-# Check if dir.conf file exists and backup the file before editing.
-dirconfig_file="/etc/apache2/mods-available/dir.conf"
-dirconf_path="/etc/apache2/mods-available/"
-php_index=$(grep DirectoryIndex "${dirconfig_file}" | awk '{print $2}')
-cd $dirconf_path
-if [ -f "${dirconf_file}" ]; then
-    echo "$dirconf_file exist creating a backup before editing."
-    cp "${dirconf_file}" "${dirconf_file}.bk"
-    sed -i "s/DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/g" "${dirconf_file}"
-    echo "index.php added to the DirectoryIndex in dir.conf."
-else
-    echo "The dir.conf file does not exist. Please re-install apache2."
-fi
-
-if [[ $php_index == "index.php" ]]; then
-    echo "index.php file exist. Reloading apache2"
-    systemctl reload apache2 --quiet
-fi
-
 # Prompt for the MariaDB root password.
 echo "Please enter the MariaDB root password:"
 read -s root_passwd
@@ -139,6 +112,47 @@ fi
 echo "Restarting mariadb"
 systemctl restart apache2 mariadb --quiet
 
+# Create a simple php script to test if php is working.
+echo "<?php phpinfo(); ?>" > /var/www/html/info.php
+
+# Check if php is working.
+php_check="$(curl -s http://localhost/info.php | grep phpinfo | awk '{print $1}')"
+if [[ $php_check == "<?php" ]]; then
+    echo "PHP is working."
+else
+    echo "PHP is not working."
+    exit 1
+fi
+
+# Check if index.html exist and rename it to avoid conflicts.
+if [ -f /var/www/html/index.html ]; then
+    echo "index.html exist"
+    mv /var/www/html/index.html /var/www/html/index.html.bk
+else
+    echo "index.html files does not exist"
+fi
+
+# Check if dir.conf file exists and backup the file before editing.
+dirconfig_file="/etc/apache2/mods-available/dir.conf"
+dirconf_path="/etc/apache2/mods-available/"
+cd $dirconf_path
+if [ -f "${dirconf_file}" ]; then
+    echo "$dirconf_file exist creating a backup before editing."
+    cp "${dirconf_file}" "${dirconf_file}"-bk
+    sed -i "s/DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/g" "${dirconf_file}"
+    echo "index.php added to the DirectoryIndex in dir.conf."
+    systemctl reload apache2 --quiet
+else
+    # Check if index.php file exist in the DirectoryIndex.
+    #echo "Checking if index.php file exist in the DirectoryIndex."
+    #php_index=$(grep DirectoryIndex "${dirconfig_file}" | awk '{print $2}')
+    #if [[ $php_index == "index.php" ]]; then
+    #    echo "index.php file exist. Reloading apache2"
+    #    systemctl reload apache2 --quiet
+    #fi
+    exit 1
+fi 
+
 # Repo variables
 repo="https://github.com/vramirez0113/bootcamp-devops-2023.git"
 #branch="clase2-linux-bash"
@@ -159,12 +173,12 @@ else
 fi
 
 # Changing booking table to allow more digits.
-db_src="$PWD/bootcamp-devops-2023/app-295devops-travel/database"
+db_src="~/bootcamp-devops-2023/app-295devops-travel/database"
 cd $db_src
 sed -i 's/`phone` int(11) DEFAULT NULL,/`phone` varchar(15) DEFAULT NULL,/g' devopstravel.sql
 
 # Copy and verify app data exist in apache root directory.
-src="$PWD/bootcamp-devops-2023/app-295devops-travel"
+src="~/bootcamp-devops-2023/app-295devops-travel"
 dest="/var/www/html/"
 if [ -f $dest/index.php ]; then
     echo "file exist"
@@ -175,14 +189,6 @@ fi
 
 # Adding database password to config.php.
 sed -i "s/\$dbPassword \= \"\";/\$dbPassword \= \"$db_passwd\";/" /var/www/html/config.php 
-
-# Test if php.info is successful.
-php_info=$(curl -s localhost/info.php | grep phpinfo)
-if [[ $php_info == *"phpinfo"* ]]; then
-    echo "info.php test successful."
-else
-    echo "info.php test failed."
-fi
 
 # Database test and copy.
 TABLE_NAME=booking
@@ -198,19 +204,36 @@ else
     systemctl restart mariadb
 fi
 
-# Check if firewall ufw is installed and active.
+# Creating apache2 firewall profile
 dpkg -s ufw > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-    echo "ufw Firewall is installed"
+    echo "ufw Firewall is installed Creating profile for apache2"
+    echo "[WWW]
+    title=Web Server
+    description=Web server
+    ports=80/tcp
+
+    [WWW Secure]
+    title=Web Server (HTTPS)
+    description=Web Server (HTTPS)
+    ports=443/tcp
+
+    [WWW Full]
+    title=Web Server (HTTP,HTTPS)
+    description=Web Server (HTTP,HTTPS)
+    ports=80,443/tcp
+
+    [WWW Cache]
+    title=Web Server (8080)
+    description=Web Server (8080)
+    ports=8080/tcp
+    " > /etc/applications.d/ufw-webserver
+# Enabling apache2 firewall profile.
     ufw --force enable
     ufw allow "WWW Full"
     ufw --force reload
 else
-    echo "Installing  UFW Firewall"
-    apt install -y ufw -qq
-    ufw --force enable
-    ufw allow "WWW Full"
-    ufw --force reload
+    echo "ufw firewall is not installed"
 fi
 
 # Restarting apache2.
