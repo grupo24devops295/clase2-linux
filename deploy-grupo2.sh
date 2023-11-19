@@ -24,15 +24,26 @@ apt update -qq
 
 # Function to display progress bar.
 function progress_bar() {
-  local current=$1
-  local total=$2
-  local percent=$((current * 100 / total))
-  local bar_length=30
+    local current=$1
+    local total=$2
+    local percent=$((current * 100 / total))
+    local bar_length=30
 
-  local bar=$(printf "%.${bar_length}s" "##############################################################")
-  bar=${bar// /#}
+    # Calculate the number of completed bars and spaces
+    local completed_bar=$((percent * bar_length / 100))
+    local spaces=$((bar_length - completed_bar))
 
-  printf "\r[%-${bar_length}s] %d%%\n" "${bar:0:$percent}" "$percent"
+    # Construct the progress bar representation
+    local bar="["
+    for ((i = 1; i <= completed_bar; i++)); do
+        bar+="#"
+    done
+    for ((i = 1; i <= spaces; i++)); do
+        bar+=" "
+    done
+    bar+="]"
+
+    printf "\r%s %d%%" "$bar" "$percent"
 }
 
 # Install Apache, MariaDB, PHP, Curl, Git packages.
@@ -41,35 +52,30 @@ total_count=${#packages[@]}
 package_count=0
 
 for package in "${packages[@]}"; do
-  # Check if package is already installed.
-  if dpkg-query -W -f='${Status}\n' "$package" 2>/dev/null | grep -q "installed"; then
-    package_count=$((package_count+1))
-    progress_bar "$package_count" "$total_count"
-    echo "$package already installed."
-  else
-    # Install package
-    apt-get install -y -qq "$package" >/dev/null 2>&1
-
-    # Check if installation was successful.
-    if [ $? -eq 0 ]; then
-      package_count=$((package_count+1))
-      progress_bar "$package_count" "$total_count"
-      echo "$package installed successfully."
+    # Check if package is already installed.
+    if dpkg-query -W -f='${Status}\n' "$package" 2>/dev/null | grep -q "installed"; then
+        package_count=$((package_count + 1))
+        progress_bar "$package_count" "$total_count"
+        echo "$package already installed."
     else
-      echo "Failed to install $package. Removing package..."
-      apt-get -y purge "$package" >/dev/null 2>&1
-      exit 1
+        # Install package and show output
+        if apt-get install -y "$package"; then
+            package_count=$((package_count + 1))
+            progress_bar "$package_count" "$total_count"
+            echo "$package installed successfully."
+        else
+            echo "Failed to install $package."
+        fi
     fi
-  fi
 done
 
 # Start and enable all services if installation was successful.
 if [ $package_count -eq $total_count ]; then
-  systemctl start apache2 --quiet
-  systemctl enable apache2 --quiet
-  systemctl start mariadb --quiet
-  systemctl enable mariadb --quiet
-  echo "Services started and enabled successfully."
+    systemctl start apache2 --quiet
+    systemctl enable apache2 --quiet
+    systemctl start mariadb --quiet
+    systemctl enable mariadb --quiet
+    echo "Services started and enabled successfully."
 fi
 
 # Repo variables
