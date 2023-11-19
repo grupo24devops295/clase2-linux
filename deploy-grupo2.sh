@@ -59,12 +59,14 @@ for package in "${packages[@]}"; do
         echo "$package already installed."
     else
         # Install package and show output
-        if apt-get install -y "$package" --quiet; then
+        if apt-get install -y -qq "$package" > /dev/null 2>&1; then
             package_count=$((package_count + 1))
             progress_bar "$package_count" "$total_count"
             echo "$package installed successfully."
         else
             echo "Failed to install $package."
+            apt-get -y purge "${packages[@]}" -qq
+            exit 1
         fi
     fi
 done
