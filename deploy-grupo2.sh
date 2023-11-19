@@ -116,7 +116,7 @@ systemctl restart apache2 mariadb --quiet
 echo "<?php phpinfo(); ?>" > /var/www/html/info.php
 
 # Check if php is working.
-php_check="$(curl -s http://localhost/info.php | grep phpinfo | awk '{print $1}')"
+php_check="$(curl -s http://localhost/info.php | grep phpinfo)"
 if [[ $php_check == *"phpinfo"* ]]; then
     echo "PHP is working."
 else
