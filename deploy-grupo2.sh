@@ -2,14 +2,14 @@
 #set -e
 
 # MySQL root credentials
-db_root_user="root"
+DB_ROOT_USER="root"
 
 # Database and user details variables.
-db_name="devopstravel"
-db_user="codeuser"
+DB_NAME="devopstravel"
+DB_USER="codeuser"
 
 # Script directory
-script_dir=$(pwd)
+SCRIPT_DIR=$(pwd)
 
 echo "Checking if this script is run by root"
 #check if script is being run as root.
@@ -118,25 +118,25 @@ echo -n "Enter the password for the database user:"
 read -s db_passwd
 
 # Mysql variables.
-db_check="$(mysqlshow "$db_name" | grep Database | awk '{print $2}')"
+DB_CHECK="$(mysqlshow "$DB_NAME" | grep Database | awk '{print $2}')"
 
 # Creating the database.
-if [[ $db_check == $db_name ]]; then
-    echo "Database $db_name exist"
+if [[ $DB_CHECK == $DB_NAME ]]; then
+    echo "Database $DB_NAME exist"
     mysql -e "
-    DROP DATABASE $db_name;
-    CREATE DATABASE IF NOT EXISTS $db_name;
-    CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_passwd';
-    GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';
+    DROP DATABASE $DB_NAME;
+    CREATE DATABASE IF NOT EXISTS $DB_NAME;
+    CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$db_passwd';
+    GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost';
     FLUSH PRIVILEGES ;"
-    echo "Database $db_name created with user $db_user and password."
+    echo "Database $DB_NAME created with user $DB_USER and password."
 else
     mysql -e "
-    CREATE DATABASE IF NOT EXISTS $db_name;
-    CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_passwd';
-    GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';
+    CREATE DATABASE IF NOT EXISTS $DB_NAME;
+    CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$db_passwd';
+    GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost';
     FLUSH PRIVILEGES ;"
-    echo "Database $db_name created with user $db_user and password."
+    echo "Database $DB_NAME created with user $DB_USER and password."
 fi
 
 # Reload MariaDB.
@@ -147,8 +147,8 @@ systemctl restart apache2 mariadb --quiet
 echo "<?php phpinfo(); ?>" > /var/www/html/info.php
 
 # Check if php is working.
-php_check="$(curl -s http://localhost/info.php | grep phpinfo)"
-if [[ $php_check == *"phpinfo"* ]]; then
+PHP_CHECK="$(curl -s http://localhost/info.php | grep phpinfo)"
+if [[ $PHP_CHECK == *"phpinfo"* ]]; then
     echo "PHP is working."
 else
     echo "PHP is not working."
@@ -167,40 +167,49 @@ else
 fi
 
 # Check if dir.conf file exists and backup the file before editing.
-dirconfig_file="/etc/apache2/mods-available/dir.conf"
-dirconf_path="/etc/apache2/mods-available/"
-cd $dirconf_path
-if [ -f "${dirconf_file}" ]; then
-    echo "$dirconf_file exist creating a backup before editing."
-    cp "${dirconf_file}" "${dirconf_file}"-bk
-    sed -i "s/DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/g" "${dirconf_file}"
+DIRCONF_FILE="/etc/apache2/mods-available/dir.conf"
+DIRCONF_PATH="/etc/apache2/mods-available/"
+
+# Change the current directory to DIRCONF_PATH
+cd "$DIRCONF_PATH"
+
+if [ -f "$DIRCONF_FILE" ]; then
+    echo "$DIRCONF_FILE exists. Creating a backup before editing."
+    timestamp=$(date +"%Y%m%d%H%M%S")
+    cp "$DIRCONF_FILE" "$DIRCONF_FILE-$timestamp"
+    echo "Backup created with filename: $DIRCONF_FILE-$timestamp"
+
+    # Replace the entire DirectoryIndex line in dir.conf
+    sed -i "s/^DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/g" "$DIRCONF_FILE"
     echo "index.php added to the DirectoryIndex in dir.conf."
-    systemctl reload apache2 --quiet
+
+    # Reload Apache service
+    systemctl reload apache2
 
     # Check if index.php file exist in the DirectoryIndex.
-    #echo "Checking if index.php file exist in the DirectoryIndex."
-    #php_index=$(grep DirectoryIndex "${dirconfig_file}" | awk '{print $2}')
-    #if [[ $php_index == "index.php" ]]; then
-    #    echo "index.php file exist. Reloading apache2"
-    #    systemctl reload apache2 --quiet
-    #fi
-    #exit 1
-fi 
+    PHP_INDEX=$(grep -o -m 1 'index.php' "$DIRCONF_FILE")
+
+    if [[ $PHP_INDEX == "index.php" ]]; then
+        echo "index.php file exists in the DirectoryIndex. Reloading apache2."
+        systemctl reload apache2
+    fi
+fi
+
 
 # Changing booking table to allow more digits.
-cd $script_dir
-db_src="${script_dir}"/bootcamp-devops-2023/app-295devops-travel/database
-cd $db_src
+cd $SCRIPT_DIR
+DB_SRC="${SCRIPT_DIR}"/bootcamp-devops-2023/app-295devops-travel/database
+cd $DB_SRC
 sed -i 's/`phone` int(11) DEFAULT NULL,/`phone` varchar(15) DEFAULT NULL,/g' devopstravel.sql
 
 # Copy and verify app data exist in apache root directory.
-src="${script_dir}"/bootcamp-devops-2023/app-295devops-travel
-dest="/var/www/html/"
-if [ -f $dest/index.php ]; then
+SRC="${SCRIPT_DIR}"/bootcamp-devops-2023/app-295devops-travel
+DEST="/var/www/html/"
+if [ -f $DEST/index.php ]; then
     echo "file exist"
 else
-    cd $src
-    cp -R ./* "${dest}"
+    cd $SRC
+    cp -R ./* "${DEST}"
 fi
 
 # Adding database password to config.php.
@@ -208,14 +217,14 @@ sed -i "s/\$dbPassword \= \"\";/\$dbPassword \= \"$db_passwd\";/" /var/www/html/
 
 # Database test and copy.
 TABLE_NAME="booking"
-TABLE_EXIST=$(mysql -u "$db_root_user" -p -e "SHOW TABLES LIKE '$TABLE_NAME'" "$db_name" 2>/dev/null)
+TABLE_EXIST=$(mysql -u "$DB_ROOT_USER" -p -e "SHOW TABLES LIKE '$TABLE_NAME'" "$DB_NAME" 2>/dev/null)
 
 # Check if database table exists before copying.
 if [[ -n $TABLE_EXIST ]]; then
     echo -e "${LGREEN}Table $TABLE_NAME exists.${NC}"
 else
     echo -e "${LRED}Table $TABLE_NAME does not exist.${NC}"
-    mysql -u "$db_root_user" -p "$db_name" < devopstravel.sql
+    mysql -u "$DB_ROOT_USER" -p "$DB_NAME" < $DB_SRC/devopstravel.sql
     systemctl restart mariadb
 fi
 
