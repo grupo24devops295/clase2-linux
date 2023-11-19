@@ -57,6 +57,27 @@ for package in "${packages[@]}"; do
     fi
 done
 
+# Repo variables
+repo="https://github.com/vramirez0113/bootcamp-devops-2023.git"
+repo_dir="~/bootcam-devops-2023"
+#branch="clase2-linux-bash"
+
+# Config Git account
+git config --global user.name "vramirez0113"
+git config --global user.email "vlakstarit@gmail.com"
+
+# Check if app repo exist before cloning
+if [ -d "$repo_dir" ]; then
+    echo $repo_dir exist
+    cd $repo_dir
+    git pull
+else
+    echo "Repo does not exist, clonning the repo"
+    sleep 1
+    git clone -b clase2-linux-bash $repo
+fi
+
+
 # Start and enable all services if installation was successful.
 if [ $package_count -eq $total_count ]; then
     systemctl start apache2 --quiet
@@ -84,7 +105,6 @@ mysql -e "SET PASSWORD FOR root@localhost = PASSWORD('$root_passwd');"
 # Ask the Database user for the password.
 echo -n "Enter the password for the database user:"
 read -s db_passwd
-echo
 
 # Mysql variables.
 db_check="$(mysqlshow "$db_name" | grep Database | awk '{print $2}')"
@@ -146,7 +166,7 @@ if [ -f "${dirconf_file}" ]; then
     sed -i "s/DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/g" "${dirconf_file}"
     echo "index.php added to the DirectoryIndex in dir.conf."
     systemctl reload apache2 --quiet
-else
+
     # Check if index.php file exist in the DirectoryIndex.
     #echo "Checking if index.php file exist in the DirectoryIndex."
     #php_index=$(grep DirectoryIndex "${dirconfig_file}" | awk '{print $2}')
@@ -156,25 +176,6 @@ else
     #fi
     #exit 1
 fi 
-
-# Repo variables
-repo="https://github.com/vramirez0113/bootcamp-devops-2023.git"
-#branch="clase2-linux-bash"
-
-# Config Git account
-git config --global user.name "vramirez0113"
-git config --global user.email "vlakstarit@gmail.com"
-
-# Check if app repo exist before cloning
-if [ -d "$repo" ]; then
-    echo $repo exist
-    cd $repo
-    git pull
-else
-    echo "Repo does not exist, clonning the repo"
-    sleep 1
-    git clone -b clase2-linux-bash $repo
-fi
 
 # Changing booking table to allow more digits.
 db_src="~/bootcamp-devops-2023/app-295devops-travel/database"
