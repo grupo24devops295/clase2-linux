@@ -29,7 +29,7 @@ function progress_bar() {
   local percent=$((current * 100 / total))
   local bar_length=30
 
-  local bar=$(printf "%.${bar_length}s" "##############################")
+  local bar=$(printf "%.${bar_length}s" "##############################################################")
   bar=${bar// /#}
 
   printf "\r[%-${bar_length}s] %d%%\n" "${bar:0:$percent}" "$percent"
@@ -146,7 +146,6 @@ if [[ $php_check == *"phpinfo"* ]]; then
     echo "PHP is working."
 else
     echo "PHP is not working."
-    exit 1
 fi
 
 # Check if index.html exist and rename it to avoid conflicts.
@@ -202,16 +201,15 @@ fi
 sed -i "s/\$dbPassword \= \"\";/\$dbPassword \= \"$db_passwd\";/" /var/www/html/config.php 
 
 # Database test and copy.
-TABLE_NAME=booking
-TABLE_EXIST=$(printf 'SHOW TABLES LIKE "%s"' "$TABLE_NAME")
+TABLE_NAME="booking"
+TABLE_EXIST=$(mysql -u "$db_root_user" -p -e "SHOW TABLES LIKE '$TABLE_NAME'" "$db_name" 2>/dev/null)
 
-# Check if database exist before copying.
-if [[ $(mysql -u $db_root_user -p -e "$TABLE_EXIST" $db_name) ]]; then
+# Check if database table exists before copying.
+if [[ -n $TABLE_EXIST ]]; then
     echo -e "${LGREEN}Table $TABLE_NAME exists.${NC}"
 else
     echo -e "${LRED}Table $TABLE_NAME does not exist.${NC}"
-    cd ${db_src}
-    mysql devopstravel < devopstravel.sql
+    mysql -u "$db_root_user" -p "$db_name" < devopstravel.sql
     systemctl restart mariadb
 fi
 
@@ -249,6 +247,7 @@ else
 fi
 
 # Restarting apache2.
-systemctl restart apache2
+systemctl restart apache2 mariadb > /dev/null 2>&1
+
 echo "295DevOps Travel installation successfull"
 echo "Please go to http://localhost to test"
