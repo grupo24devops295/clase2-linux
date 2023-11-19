@@ -117,7 +117,7 @@ echo "<?php phpinfo(); ?>" > /var/www/html/info.php
 
 # Check if php is working.
 php_check="$(curl -s http://localhost/info.php | grep phpinfo | awk '{print $1}')"
-if [[ $php_check == "<?php" ]]; then
+if [[ $php_check == *"phpinfo"* ]]; then
     echo "PHP is working."
 else
     echo "PHP is not working."
