@@ -27,51 +27,54 @@ function progress_bar() {
   local current=$1
   local total=$2
   local percent=$((current * 100 / total))
-  local bar_length=100
+  local bar_length=30
 
-  printf "%s " "$percent" | awk '{printf("\r[%-30s] %d%%", substr("##############################", 1, ($1/5)+0.5), $1)}'
+  local bar=$(printf "%.${bar_length}s" "##############################")
+  bar=${bar// /#}
+
+  printf "\r[%-${bar_length}s] %d%%\n" "${bar:0:$percent}" "$percent"
 }
 
-# Install Apache, MariaDB,PHP, Curl, Git packages.
+# Install Apache, MariaDB, PHP, Curl, Git packages.
 packages=("apache2" "mariadb-server" "php" "libapache2-mod-php" "php-mysql" "php-mbstring" "php-zip" "php-gd" "php-json" "php-curl" "curl" "git")
 total_count=${#packages[@]}
 package_count=0
 
 for package in "${packages[@]}"; do
-# Check if package is already installed.
-    if dpkg -s "$package" > /dev/null 2>&1; then
-        package_count=$((package_count+1))
-        progress_bar "$package_count" "$total_count"
-        echo " $package already installed."
-    else
-        # Install package
-        apt-get install -y -qq "$package" > /dev/null 2>&1
+  # Check if package is already installed.
+  if dpkg-query -W -f='${Status}\n' "$package" 2>/dev/null | grep -q "installed"; then
+    package_count=$((package_count+1))
+    progress_bar "$package_count" "$total_count"
+    echo "$package already installed."
+  else
+    # Install package
+    apt-get install -y -qq "$package" >/dev/null 2>&1
 
-        # Check if installation was successful.
-        if [ $? -eq 0 ]; then
-            package_count=$((package_count+1))
-            progress_bar "$package_count" "$total_count"
-            echo "$package installed successfully."
-        else
-            echo "Failed to install $package. Removing packages..."
-            apt-get -y purge "${packages[@]}" -qq
-            exit 1
-        fi
+    # Check if installation was successful.
+    if [ $? -eq 0 ]; then
+      package_count=$((package_count+1))
+      progress_bar "$package_count" "$total_count"
+      echo "$package installed successfully."
+    else
+      echo "Failed to install $package. Removing package..."
+      apt-get -y purge "$package" >/dev/null 2>&1
+      exit 1
     fi
+  fi
 done
 
 # Start and enable all services if installation was successful.
 if [ $package_count -eq $total_count ]; then
-    systemctl start apache2 --quiet
-    systemctl enable apache2 --quiet
-    systemctl start mariadb --quiet
-    systemctl enable mariadb --quiet
-    echo "Services started and enabled successfully."
+  systemctl start apache2 --quiet
+  systemctl enable apache2 --quiet
+  systemctl start mariadb --quiet
+  systemctl enable mariadb --quiet
+  echo "Services started and enabled successfully."
 fi
 
 # Repo variables
 repo="https://github.com/vramirez0113/bootcamp-devops-2023.git"
-repo_dir="~/bootcam-devops-2023"
+repo_dir="bootcamp-devops-2023"
 #branch="clase2-linux-bash"
 
 # Config Git account
@@ -208,7 +211,7 @@ if [[ $(mysql -u $db_root_user -p -e "$TABLE_EXIST" $db_name) ]]; then
 else
     echo -e "${LRED}Table $TABLE_NAME does not exist.${NC}"
     cd ${db_src}
-    mysql < devopstravel.sql
+    mysql devopstravel < devopstravel.sql
     systemctl restart mariadb
 fi
 
@@ -216,7 +219,7 @@ fi
 dpkg -s ufw > /dev/null 2>&1
 if [ $? -eq 0 ]; then
     echo "ufw Firewall is installed Creating profile for apache2"
-    { echo
+    echo "
     [WWW]
     title=Web Server
     description=Web server
@@ -235,9 +238,7 @@ if [ $? -eq 0 ]; then
     [WWW Cache]
     title=Web Server (8080)
     description=Web Server (8080)
-    ports=8080/tcp } > /etc/ufw/applications.d/ufw-webserver
-    # Copying ufw-webserver profile to ufw applications directory.
-    #cp ufw-webserver /etc/ufw/applications.d/ufw-webserver
+    ports=8080/tcp" > /etc/ufw/applications.d/ufw-webserver
 
     # Enabling apache2 firewall profile.
     ufw --force enable
