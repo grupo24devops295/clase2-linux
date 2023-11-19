@@ -53,13 +53,13 @@ package_count=0
 
 for package in "${packages[@]}"; do
     # Check if package is already installed.
-    if dpkg-query -W -f='${Status}\n' "$package" 2>/dev/null | grep -q "installed"; then
+    if dpkg-query -W -f='${Status}\n' "$package" 2>/dev/null | grep -qq "installed"; then
         package_count=$((package_count + 1))
         progress_bar "$package_count" "$total_count"
         echo "$package already installed."
     else
         # Install package and show output
-        if apt-get install -y "$package"; then
+        if apt-get install -y "$package" --quiet; then
             package_count=$((package_count + 1))
             progress_bar "$package_count" "$total_count"
             echo "$package installed successfully."
@@ -274,4 +274,4 @@ else
 fi
 
 # Send Discord notification to my personal deploy-channel
-curl -X POST -H "Content-Type: application/json" -d "{\"content\":\"$message\"}" $WEBHOOK_URL"
+curl -X POST -H "Content-Type: application/json" -d "{\"content\":\"$message\"}" "$WEBHOOK_URL"
