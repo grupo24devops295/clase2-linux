@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 #set -e
 
 # MySQL root credentials
@@ -79,23 +79,23 @@ if [ $package_count -eq $total_count ]; then
 fi
 
 # Repo variables
-repo="https://github.com/vramirez0113/bootcamp-devops-2023.git"
-repo_dir="bootcamp-devops-2023"
-#branch="clase2-linux-bash"
+REPO_URL="https://github.com/vramirez0113/bootcamp-devops-2023.git"
+REPO_NAME="bootcamp-devops-2023"
+BRANCH="clase2-linux-bash"
 
 # Config Git account
 git config --global user.name "vramirez0113"
 git config --global user.email "vlakstarit@gmail.com"
 
-# Check if app repo exist before cloning
-if [ -d "$repo_dir" ]; then
-    echo $repo_dir exist
-    cd $repo_dir
+# Check if app REPO_URL exist before cloning
+if [ -d "$REPO_NAME" ]; then
+    echo $REPO_NAME exist
+    cd $REPO_NAME
     git pull
 else
-    echo "Repo does not exist, clonning the repo"
+    echo "Repo does not exist, clonning the REPO_URL"
     sleep 1
-    git clone -b clase2-linux-bash $repo
+    git clone -b $BRANCH $REPO_URL
 fi
 
 # Prompt for the MariaDB root password.
@@ -195,7 +195,6 @@ if [ -f "$DIRCONF_FILE" ]; then
     fi
 fi
 
-
 # Changing booking table to allow more digits.
 cd $SCRIPT_DIR
 DB_SRC="${SCRIPT_DIR}"/bootcamp-devops-2023/app-295devops-travel/database
@@ -264,5 +263,15 @@ fi
 # Restarting apache2.
 systemctl restart apache2 mariadb > /dev/null 2>&1
 
-echo "295DevOps Travel installation successfull"
-echo "Please go to http://localhost to test"
+# Collect information about installation success or failure
+WEBHOOK_URL="https://discordapp.com/api/webhooks/1175907476839874681/MfOT4N73ILoLi8uLAOrn5FGqGOZ9oMWYkfTnyTBE2GbKd9Qr-2vTeVzJ7MxdDzI2L1et"
+if [ $? -ep 0 ]; then
+    echo -e "${GREEN}295DevOps Travel installacion successfull.${NC}"
+    message="295DevOps Travel installation successfull."
+else
+    echo -e "${LRED}295DevOps Travel installation Failed.${NC}"
+    message="295DevOps Travel installation Failed."
+fi
+
+# Send Discord notification to my personal deploy-channel
+curl -X POST -H "Content-Type: application/json" -d "{\"content\":\"$message\"}" $WEBHOOK_URL
