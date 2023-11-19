@@ -265,7 +265,7 @@ systemctl restart apache2 mariadb > /dev/null 2>&1
 
 # Collect information about installation success or failure
 WEBHOOK_URL="https://discordapp.com/api/webhooks/1175907476839874681/MfOT4N73ILoLi8uLAOrn5FGqGOZ9oMWYkfTnyTBE2GbKd9Qr-2vTeVzJ7MxdDzI2L1et"
-if [ $? -ep 0 ]; then
+if [ $? -eq 0 ]; then
     echo -e "${GREEN}295DevOps Travel installacion successfull.${NC}"
     message="295DevOps Travel installation successfull."
 else
@@ -274,4 +274,4 @@ else
 fi
 
 # Send Discord notification to my personal deploy-channel
-curl -X POST -H "Content-Type: application/json" -d "{\"content\":\"$message\"}" $WEBHOOK_URL
+curl -X POST -H "Content-Type: application/json" -d "{\"content\":\"$message\"}" $WEBHOOK_URL"
