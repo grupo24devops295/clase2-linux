@@ -283,27 +283,30 @@ fi
 # Send Discord notification to my personal deploy-channel
 curl -X POST -H "Content-Type: application/json" -d "{\"content\":\"$message\"}" "$WEBHOOK_URL"
 
-# Send Notification to DevOps295 Discor Channel
-# Configura el token de acceso de tu bot de Discord
+# Send Notification to DevOps295 Discor ChannelConfigura el token de acceso de tu bot de Discord
 #Configura el token de acceso de tu bot de Discord
 DISCORD="https://discord.com/api/webhooks/1169002249939329156/7MOorDwzym-yBUs3gp0k5q7HyA42M5eYjfjpZgEwmAx1vVVcLgnlSh4TmtqZqCtbupov"
-# Verifica si se proporcionó el argumento del directorio del repositorio
+
 cd $SCRIPT_DIR
 git config --global --add safe.directory "$SCRIPT_DIR/$REPO_NAME"
 if [ -d $REPO_DIR ]; then
    cd $REPO_NAME
 fi
+
 # Obtiene el nombre del repositorio
 repo_name=$(basename $(git rev-parse --show-toplevel))
+
 # Obtiene la URL remota del repositorio
 repo_url=$(git remote get-url origin)
 WEB_URL="localhost"
+
 # Realiza una solicitud HTTP GET a la URL
 HTTP_STATUS=$(curl -Is "$WEB_URL" | head -n 1)
 
 # Verifica si la respuesta es 200 OK (puedes ajustar esto según tus necesidades)
 if [[ "$HTTP_STATUS" == *"200 OK"* ]]; then
-  # Obtén información del repositorio
+
+# Obtén información del repositorio
     DEPLOYMENT_INFO2="Despliegue del repositorio $repo_name: "
     DEPLOYMENT_INFO="La página web $WEB_URL está en línea."
     COMMIT="Commit: $(git rev-parse --short HEAD)"
