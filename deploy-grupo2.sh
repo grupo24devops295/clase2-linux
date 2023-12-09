@@ -398,7 +398,7 @@ done
 
 # Check if web app is running
 echo -e "Checking if web app is running"
-curl -s http://localhost:80 | grep 295DevOps | echo -e "\n"295DevOps Travel app is running"
+curl -s http://localhost:80 | grep 295DevOps | echo -e "\n295DevOps Travel app is running"
 if [ $? -eq 0 ]; then
     echo -e "\n${LGREEN}295DevOps Travel app is running.${NC}"
 else
