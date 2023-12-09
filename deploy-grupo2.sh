@@ -1,31 +1,38 @@
 #!/bin/bash
-#set -e
+
+# Script directory
+SCRIPT_DIR=$(pwd)
+
+DB_DIR="/db_data"
+WEB_DIR="/web_data"
 
 #Colors
 LRED='\033[1;31m'
 LGREEN='\033[1;32m'
 NC='\033[0m'
 
-# MySQL root credentials
-DB_ROOT_USER="root"
-
-# Database and user details variables.
-DB_NAME="devopstravel"
-DB_USER="codeuser"
-
-# Script directory
-SCRIPT_DIR=$(pwd)
-
-echo "Checking if this script is run by root"
-#check if script is being run as root.
-if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root"
-   exit 1
+# Creating local container volumes
+echo -e "Creating Container volumes if they dont exist"
+if [ -d "$DB_DIR" ] && [ -d "$WEB_DIR" ]; then
+    echo -e "\n$DB_DIR $WEB_DIR exists"
+    sudo rm -rf "$DB_DIR"/*
+    sudo rm -rf "$WEB_DIR"/*
+else
+    mkdir "$DB_DIR" "$WEB_DIR"
 fi
 
-echo "Updating packages index"
-# Update the package list.
-apt update -qq
+# Repo variables
+REPO_DIR="$SCRIPT_DIR/bootcamp-devops-2023"
+REPO_URL="https://github.com/vramirez0113/bootcamp-devops-2023.git"
+REPO_NAME="bootcamp-devops-2023"
+BRANCH="ejercicio2-dockeriza"
+
+# Check if script is being run as root.
+echo -e "\nChecking if this script is run by root"
+if [[ $EUID -ne 0 ]]; then
+   echo -e "\n${LRED}This script must be run as root.${NC}"
+   exit 1
+fi
 
 # Function to display progress bar.
 function progress_bar() {
@@ -51,8 +58,31 @@ function progress_bar() {
     printf "\r%s %d%%" "$bar" "$percent"
 }
 
-# Install Apache, MariaDB, PHP, Curl, Git packages.
-packages=("apache2" "mariadb-server" "php" "libapache2-mod-php" "php-mysql" "php-mbstring" "php-zip" "php-gd" "php-json" "php-curl" "curl" "git")
+# Add Docker's official GPG key:
+DOCKER_GPG="/etc/apt/keyrings/docker.gpg"
+sudo apt-get update -qq
+if [ -f $DOCKER_GPG ]; then
+    echo "\n$DOCKER_GPG exists"
+else
+    sudo apt-get install -y -qq ca-certificates curl gnupg > /dev/null 2>&1
+    sudo install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg > /dev/null 2>&1
+    sudo chmod a+r /etc/apt/keyrings/docker.gpg
+fi
+# Add the repository to Apt sources:
+DOCKER_REPO="/etc/apt/sources.list.d/docker.list"
+if [ -f $DOCKER_REPO ]; then
+    echo "$DOCKER_REPO exists"
+else
+    echo \
+    "deb [arch=\"$(dpkg --print-architecture)\" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo apt-get update -qq > /dev/null 2>&1
+fi
+
+# Install Apache, mysql, PHP, Curl, Git packages.
+packages=("docker-ce" "docker-ce-cli" "containerd.io" "docker-buildx-plugin" "docker-compose" "docker-compose-plugin" "git" "curl" "coreutils")
 total_count=${#packages[@]}
 package_count=0
 
@@ -61,15 +91,15 @@ for package in "${packages[@]}"; do
     if dpkg-query -W -f='${Status}\n' "$package" 2>/dev/null | grep -qq "installed"; then
         package_count=$((package_count + 1))
         progress_bar "$package_count" "$total_count"
-        echo "$package already installed."
+        echo -e "\n$package already installed."
     else
         # Install package and show output
         if apt-get install -y -qq "$package" > /dev/null 2>&1; then
             package_count=$((package_count + 1))
             progress_bar "$package_count" "$total_count"
-            echo "$package installed successfully."
+            echo -e "\n${LGREEN}$package installed successfully.${NC}"
         else
-            echo "Failed to install $package."
+            echo -e "\n${LRED}Failed to install $package.${NC}"
             apt-get -y purge "${packages[@]}" -qq
             exit 1
         fi
@@ -78,246 +108,312 @@ done
 
 # Start and enable all services if installation was successful.
 if [ $package_count -eq $total_count ]; then
-    systemctl start apache2 --quiet
-    systemctl enable apache2 --quiet
-    systemctl start mariadb --quiet
-    systemctl enable mariadb --quiet
-    echo "Services started and enabled successfully."
+    systemctl start docker --quiet
+    systemctl enable docker --quiet
+    echo -e "Services started and enabled successfully."
 fi
 
-# Repo variables
-REPO_URL="https://github.com/vramirez0113/bootcamp-devops-2023.git"
-REPO_NAME="bootcamp-devops-2023"
-BRANCH="clase2-linux-bash"
+# Prompt for the mysql root password.
+echo -e "Please enter the mysql root password:"
+read -s db_root_passwd
+
+# Ask the Database user for the password.
+echo -n "Please enter the password for the database user:"
+read -s db_passwd
 
 # Config Git account
+echo -e "\nConfiguring Git account"
 git config --global user.name "vramirez0113"
 git config --global user.email "vlakstarit@gmail.com"
 
 # Check if app REPO_URL exist before cloning
+echo -e "\nChecking if $REPO_NAME exists before cloning"
 if [ -d "$REPO_NAME" ]; then
-    echo $REPO_NAME exist
-    cd $REPO_NAME
+    echo -e "\n$REPO_NAME exists"
+    cd "$REPO_NAME"
     git pull
 else
-    echo "Repo does not exist, clonning the REPO_URL"
+    echo -e "\n$REPO_NAME does not exist."
+    echo -e "\nCloning $REPO_NAME from $REPO_URL."
     sleep 1
-    git clone -b $BRANCH $REPO_URL
-fi
-
-# Prompt for the MariaDB root password.
-echo "Please enter the MariaDB root password:"
-read -s root_passwd
-
-echo "Configuring MariaDB with the provided root password"
-
-#printf "n\n n\n y\n y\n y\n y\n" | mysql_secure_installation 2>/dev/null
-printf "n
- n
- y
- y
- y
- y
-" | mysql_secure_installation 2>/dev/null
-mysql -e "SET PASSWORD FOR root@localhost = PASSWORD('$root_passwd');"
-# Ask the Database user for the password.
-echo -n "Enter the password for the database user:"
-read -s db_passwd
-
-# Mysql variables.
-DB_CHECK="$(mysqlshow "$DB_NAME" | grep Database | awk '{print $2}')"
-
-# Creating the database.
-if [[ $DB_CHECK == $DB_NAME ]]; then
-    echo "Database $DB_NAME exist"
-    mysql -e "
-    DROP DATABASE $DB_NAME;
-    CREATE DATABASE IF NOT EXISTS $DB_NAME;
-    CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$db_passwd';
-    GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost';
-    FLUSH PRIVILEGES ;"
-    echo "Database $DB_NAME created with user $DB_USER and password."
-else
-    mysql -e "
-    CREATE DATABASE IF NOT EXISTS $DB_NAME;
-    CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$db_passwd';
-    GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost';
-    FLUSH PRIVILEGES ;"
-    echo "Database $DB_NAME created with user $DB_USER and password."
-fi
-
-# Reload MariaDB.
-echo "Restarting mariadb"
-systemctl restart apache2 mariadb --quiet
-
-# Create a simple php script to test if php is working.
-echo "<?php phpinfo(); ?>" > /var/www/html/info.php
-
-# Check if php is working.
-PHP_CHECK="$(curl -s http://localhost/info.php | grep phpinfo)"
-if [[ $PHP_CHECK == *"phpinfo"* ]]; then
-    echo "PHP is working."
-else
-    echo "PHP is not working."
-fi
-
-# Check if index.html exist and rename it to avoid conflicts.
-if [ -f /var/www/html/index.html ]; then
-    echo "index.html exist"
-    mv /var/www/html/index.html /var/www/html/index.html.bk
-else
-      if [ -f /var/www/html/index.html.bk ]; then
-      echo "index.html backed up file exist"
-    else
-        echo "index.html does not exist"
-    fi
-fi
-
-# Check if dir.conf file exists and backup the file before editing.
-DIRCONF_FILE="/etc/apache2/mods-available/dir.conf"
-DIRCONF_PATH="/etc/apache2/mods-available/"
-
-# Change the current directory to DIRCONF_PATH
-cd "$DIRCONF_PATH"
-
-if [ -f "$DIRCONF_FILE" ]; then
-    echo "$DIRCONF_FILE exists. Creating a backup before editing."
-    timestamp=$(date +"%Y%m%d%H%M%S")
-    cp "$DIRCONF_FILE" "$DIRCONF_FILE-$timestamp"
-    echo "Backup created with filename: $DIRCONF_FILE-$timestamp"
-
-    # Replace the entire DirectoryIndex line in dir.conf
-    sed -i "s/^DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/g" "$DIRCONF_FILE"
-    echo "index.php added to the DirectoryIndex in dir.conf."
-
-    # Reload Apache service
-    systemctl reload apache2
-
-    # Check if index.php file exist in the DirectoryIndex.
-    PHP_INDEX=$(grep -o -m 1 'index.php' "$DIRCONF_FILE")
-
-    if [[ $PHP_INDEX == "index.php" ]]; then
-        echo "index.php file exists in the DirectoryIndex. Reloading apache2."
-        systemctl reload apache2
-    fi
+    git clone -b "$BRANCH" "$REPO_URL"
 fi
 
 # Changing booking table to allow more digits.
-cd $SCRIPT_DIR
-DB_SRC="${SCRIPT_DIR}"/bootcamp-devops-2023/app-295devops-travel/database
-cd $DB_SRC
+echo -e "\nChanging booking table to allow more digits"
+SCRIPT_DIR=$(pwd)
+DB_SRC="$SCRIPT_DIR/bootcamp-devops-2023/295devops-travel-lamp/database"
+cd "$DB_SRC"
 sed -i 's/`phone` int(11) DEFAULT NULL,/`phone` varchar(15) DEFAULT NULL,/g' devopstravel.sql
 
-# Copy and verify app data exist in apache root directory.
-SRC="${SCRIPT_DIR}"/bootcamp-devops-2023/app-295devops-travel
-DEST="/var/www/html/"
-if [ -f $DEST/index.php ]; then
-    echo "file exist"
+# Adding database password and container database nane to config.php.
+echo -e "\nAdding database password and container database nane to config.php"
+DATA_SRC="$SCRIPT_DIR/bootcamp-devops-2023/295devops-travel-lamp"
+sed -i "s/\$dbPassword \= \"\";/\$dbPassword \= \"$db_passwd\";/" "$DATA_SRC/config.php"
+sed -i 's/$dbHost     \= "localhost";/$dbHost     \= "db";/' "$DATA_SRC/config.php"
+
+
+# Copy and verify web data exist web_data dir.
+echo -e "\nCopy and verify web data exist web_data dir"
+if [ -f "$WEB_DIR/index.php" ]; then
+    echo "File exists"
 else
-    cd $SRC
-    cp -R ./* "${DEST}"
+    cd "$DATA_SRC"
+    cp -R ./* "$WEB_DIR"
 fi
 
-# Adding database password to config.php.
-sed -i "s/\$dbPassword \= \"\";/\$dbPassword \= \"$db_passwd\";/" /var/www/html/config.php 
-
-# Database test and copy.
-TABLE_NAME="booking"
-TABLE_EXIST=$(mysql -u "$DB_ROOT_USER" -p -e "SHOW TABLES LIKE '$TABLE_NAME'" "$DB_NAME" 2>/dev/null)
-
-# Check if database table exists before copying.
-if [[ -n $TABLE_EXIST ]]; then
-    echo -e "${LGREEN}Table $TABLE_NAME exists.${NC}"
+# Copy and verify database data exist database dir.
+echo -e "\nCopy and verify database data exist database dir"
+if [ -f "$SCRIPT_DIR/devopstravel.sql" ]; then
+    echo "File exists"
 else
-    echo -e "${LRED}Table $TABLE_NAME does not exist.${NC}"
-    mysql -u "$DB_ROOT_USER" -p "$DB_NAME" < $DB_SRC/devopstravel.sql
-    systemctl restart mariadb
+    cd "$DB_SRC"
+    cp devopstravel.sql "$SCRIPT_DIR"
 fi
 
-# Creating apache2 firewall profile
-dpkg -s ufw > /dev/null 2>&1
+#Login to Docker Hub
+echo -e "\nLogin to Docker Hub"
+sudo docker login --username=starvlak
+
+# Create a network
+sudo docker network create app-network
+
+echo -e "Creating Apache-php container Dockerfile.web"
+# Dockerfile to create a custom php-apache image containing mysqli extension
+cd "$SCRIPT_DIR"
+if [ -f "$SCRIPT_DIR/Dockerfile.web" ]; then
+    echo "\nFile exists"
+    sudo rm -rf Dockerfile.web
+    echo \
+    "FROM ubuntu:slim
+    # Set environment variables
+    ENV DEBIAN_FRONTEND=noninteractive
+    # Install dependencies
+    RUN apt-get update -y && apt-get install -y \
+    apache2 \
+    php \
+    libapache2-mod-php \
+    php-mysql \
+    php-mbstring \
+    php-zip \
+    php-gd \
+    php-json \
+    php-curl \
+    && sed -i 's/^DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/g' /etc/apache2/mods-enabled/dir.conf \
+    && apt-get autoclean -y \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/cache/apt/* \
+    && rm -rf /var/log/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
+
+    # Expose port 80 for Apache server
+    EXPOSE 80
+
+    #Start Apache server
+    CMD [\"/usr/sbin/apache2ctl\", \"-D\", \"FOREGROUND\"]" > "$SCRIPT_DIR/Dockerfile.web"
+    # To create a custom apache-php image that includes mysqli extensions and push it to Docker Hub
+    echo -e "Building and pushing Dockerfile.web to Docker Hub"
+    sudo docker build -t starvlak/app-travel:apache2-php_v1.0 -f Dockerfile.web .
+    sudo docker push starvlak/app-travel:apache2-php_v1.0
+else
+    echo \
+    "FROM ubuntu:slim
+    # Set environment variables
+    ENV DEBIAN_FRONTEND=noninteractive
+    # Install dependencies
+    RUN apt-get update -y && apt-get install -y \
+    apache2 \
+    php \
+    libapache2-mod-php \
+    php-mysql \
+    php-mbstring \
+    php-zip \
+    php-gd \
+    php-json \
+    php-curl \
+    && sed -i 's/^DirectoryIndex.*/DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm/g' /etc/apache2/mods-enabled/dir.conf \
+    && apt-get autoclean -y \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/cache/apt/* \
+    && rm -rf /var/log/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
+    
+    # Expose port 80 for Apache server
+    EXPOSE 80
+
+    #Start Apache server
+    CMD [\"/usr/sbin/apache2ctl\", \"-D\", \"FOREGROUND\"]" > "$SCRIPT_DIR/Dockerfile.web"
+    # To create a custom apache-php image that includes mysqli extensions and push it to Docker Hub
+    echo -e "Building and pushing Dockerfile.web to Docker Hub"
+    sudo docker build -t starvlak/app-travel:apache2-php_v1.0 -f Dockerfile.web .
+    sudo docker push starvlak/app-travel:apache2-php_v1.0
+fi
+
+echo -e "Creating Dockerfile.phpmyadmin"
+# Dockerfile to create custome phpmyadmin image
+if [ -f "$SCRIPT_DIR/Dockerfile.phpmyadmin" ]; then
+    echo "File exists"
+    sudo  rm -rf Dockerfile.phpmyadmin
+    echo \
+    "FROM phpmyadmin/phpmyadmin
+    ENV PMA_HOST=db
+    ENV MYSQL_ROOT_PASSWORD=$db_root_passwd
+    ENV MYSQL_DATABASE=devopstravel
+    ENV MYSQL_USER=codeuser
+    ENV MYSQL_PASSWORD=$db_passwd" > "$SCRIPT_DIR/Dockerfile.phpmyadmin"
+    # Build and push phpmyadmin Docker image to Docker Hub
+    echo -e "Building and pushing Dockerfile.phpmyadmin to Docker Hub"
+    sudo docker build -t starvlak/app-travel:phpmyadmin_v1.0 -f Dockerfile.phpmyadmin .
+    sudo docker push starvlak/app-travel:phpmyadmin_v1.0
+else
+    echo \
+    "FROM phpmyadmin/phpmyadmin
+    ENV PMA_HOST=db
+    ENV MYSQL_ROOT_PASSWORD=$db_root_passwd
+    ENV MYSQL_DATABASE=devopstravel
+    ENV MYSQL_USER=codeuser
+    ENV MYSQL_PASSWORD=$db_passwd" > "$SCRIPT_DIR/Dockerfile.phpmyadmin"
+    # Build and push phpmyadmin Docker image to Docker Hub
+    echo -e "Building and pushing Dockerfile.phpmyadmin to Docker Hub"
+    sudo docker build -t starvlak/app-travel:phpmyadmin_v1.0 -f Dockerfile.phpmyadmin .
+    sudo docker push starvlak/app-travel:phpmyadmin_v1.0
+fi
+
+echo -e "Creating Dockerfile.db"
+# Dockerfile to create a custom mysql image
+if [ -f "$SCRIPT_DIR/Dockerfile.db" ]; then
+    echo "File exists"
+    sudo rm -rf Dockerfile.db
+    echo \
+    "FROM mysql:latest
+    ENV MYSQL_ROOT_PASSWORD=$db_root_passwd
+    ENV MYSQL_DATABASE=devopstravel
+    ENV MYSQL_USER=codeuser
+    ENV MYSQL_PASSWORD=$db_passwd
+    # Copy the devopstravel.sql file to the container
+    COPY devopstravel.sql /docker-entrypoint-initdb.d/" > "$SCRIPT_DIR/Dockerfile.db"
+    # Build and push Mysql Docker image to Docker Hub
+    echo -e "Building and pushing Dockerfile.db to Docker Hub"
+    sudo docker build -t starvlak/app-travel:mysql_v1.0 -f Dockerfile.db .
+    sudo docker push starvlak/app-travel:mysql_v1.0
+else
+    echo \
+    "FROM mysql:latest
+    ENV MYSQL_ROOT_PASSWORD=$db_root_passwd
+    ENV MYSQL_DATABASE=devopstravel
+    ENV MYSQL_USER=codeuser
+    ENV MYSQL_PASSWORD=$db_passwd
+    # Copy the devopstravel.sql file to the container
+    COPY devopstravel.sql /docker-entrypoint-initdb.d/" > "$SCRIPT_DIR/Dockerfile.db"
+    # Build and push Mysql Docker image to Docker Hub
+    echo -e "Building and pushing Dockerfile.db to Docker Hub"
+    sudo docker build -t starvlak/app-travel:mysql_v1.0 -f Dockerfile.db .
+    sudo docker push starvlak/app-travel:mysql_v1.0
+fi
+
+echo -e "Creating docker-compose.yml"
+# Docker compose file
+echo \
+"version: '3.8'
+services:
+    db:
+        build:
+            context: .
+            dockerfile: Dockerfile.db
+        image: starvlak/app-travel:mysql_v1.0
+        container_name: db
+        environment:
+            - MYSQL_ROOT_PASSWORD=${db_root_passwd}
+            - MYSQL_DATABASE=devopstravel
+            - MYSQL_USER=codeuser
+            - MYSQL_PASSWORD=${db_passwd}
+        volumes:
+            - type: bind
+              source: /db_data
+              target: /var/lib/mysql
+        networks:
+            - app-network
+
+    web:
+        build:
+            context: .
+            dockerfile: Dockerfile.web
+        image: starvlak/app-travel:apache2-php_v1.0
+        container_name: web
+        depends_on:
+            - db
+        ports:
+            - 80:80
+        volumes:
+            - type: bind
+              source: /web_data
+              target: /var/www/html
+        networks:
+            - app-network
+
+    phpmyadmin:
+        build:
+            context: .
+            dockerfile: Dockerfile.phpmyadmin
+        image: starvlak/app-travel:phpmyadmin_v1.0
+        container_name: phpmyadmin
+        depends_on:
+            - db
+        ports:
+            - 8080:80
+        environment:
+            - PMA_HOST=db
+            - PMA_PORT=3306
+            - PMA_USER=root
+            - PMA_PASSWORD=${db_root_passwd}
+            - PMA_ARBITRARY=1
+        networks:
+            - app-network
+
+networks:
+    app-network:
+        driver: bridge" > docker-compose.yml
+
+# Run docker-compose
+sudo docker-compose up -d
+
+# Container names
+containers=("web" "db" "phpmyadmin")
+
+# Check if all containers are up and running
+echo -e "\nChecking if all containers are up and running"
+for container in "${containers[@]}"; do
+    docker ps | grep -q $container
+    if [ $? -eq 0 ]; then
+        echo -e "\n${LGREEN}Container $container is running.${NC}"
+    else
+        echo -e "\n${LRED}Container $container is not running.${NC}"
+        exit 1
+    fi
+done
+
+# Check if web app is running
+echo -e "Checking if web app is running"
+curl -s http://localhost:80 | grep 295DevOps | echo -e "\n"295DevOps Travel app is running"
 if [ $? -eq 0 ]; then
-    echo "ufw Firewall is installed Creating profile for apache2"
-    echo "
-    [WWW]
-    title=Web Server
-    description=Web server
-    ports=80/tcp
-
-    [WWW Secure]
-    title=Web Server (HTTPS)
-    description=Web Server (HTTPS)
-    ports=443/tcp
-
-    [WWW Full]
-    title=Web Server (HTTP,HTTPS)
-    description=Web Server (HTTP,HTTPS)
-    ports=80,443/tcp
-
-    [WWW Cache]
-    title=Web Server (8080)
-    description=Web Server (8080)
-    ports=8080/tcp" > /etc/ufw/applications.d/ufw-webserver
-
-    # Enabling apache2 firewall profile.
-    ufw --force enable
-    ufw allow "WWW Full"
-    ufw --force reload
+    echo -e "\n${LGREEN}295DevOps Travel app is running.${NC}"
 else
-    echo "ufw firewall is not installed"
+    echo -e "\n${LRED}295DevOps Travel app is not running.${NC}"
 fi
-
-# Restarting apache2.
-systemctl restart apache2 mariadb > /dev/null 2>&1
 
 # Collect information about installation success or failure
-WEBHOOK_URL="https://discordapp.com/api/webhooks/1175907476839874681/MfOT4N73ILoLi8uLAOrn5FGqGOZ9oMWYkfTnyTBE2GbKd9Qr-2vTeVzJ7MxdDzI2L1et"
+WEBHOOK_URL="https://discordapp.com/api/webhooks/1182933054046613584/MNmdYzvvl6l5gSznSyzbGeU12C56bTm71frnJ6fDLBFJuZtB7dEHZjwGtWV9OO6wqRRb"
 if [ $? -eq 0 ]; then
-    echo -e "${LGREEN}295DevOps Travel installation successfull.${NC}"
-    message="295DevOps Travel installation successfull."
+    echo -e "\n${LGREEN}295DevOps Travel installation successful.${NC}"
+    message="$REPO_URL $BRANCH 295DevOps Travel installation successful."
 else
-    echo -e "${LRED}295DevOps Travel installation Failed.${NC}"
-    message="295DevOps Travel installation Failed."
+    echo -e "\n${LRED}295DevOps Travel installation Failed.${NC}"
+    message="$REPO_URL $BRANCH 295DevOps Travel installation successful."
 fi
 
 # Send Discord notification to my personal deploy-channel
 curl -X POST -H "Content-Type: application/json" -d "{\"content\":\"$message\"}" "$WEBHOOK_URL"
-
-# Send Notification to DevOps295 Discor ChannelConfigura el token de acceso de tu bot de Discord
-#Configura el token de acceso de tu bot de Discord
-DISCORD="https://discord.com/api/webhooks/1169002249939329156/7MOorDwzym-yBUs3gp0k5q7HyA42M5eYjfjpZgEwmAx1vVVcLgnlSh4TmtqZqCtbupov"
-
-cd $SCRIPT_DIR
-git config --global --add safe.directory "$SCRIPT_DIR/$REPO_NAME"
-if [ -d $REPO_DIR ]; then
-   cd $REPO_NAME
-fi
-
-# Obtiene el nombre del repositorio
-repo_name=$(basename $(git rev-parse --show-toplevel))
-
-# Obtiene la URL remota del repositorio
-repo_url=$(git remote get-url origin)
-WEB_URL="localhost"
-
-# Realiza una solicitud HTTP GET a la URL
-HTTP_STATUS=$(curl -Is "$WEB_URL" | head -n 1)
-
-# Verifica si la respuesta es 200 OK (puedes ajustar esto según tus necesidades)
-if [[ "$HTTP_STATUS" == *"200 OK"* ]]; then
-
-# Obtén información del repositorio
-    DEPLOYMENT_INFO2="Despliegue del repositorio $repo_name: "
-    DEPLOYMENT_INFO="La página web $WEB_URL está en línea."
-    COMMIT="Commit: $(git rev-parse --short HEAD)"
-    AUTHOR="Autor: $(git log -1 --pretty=format:'%an')"
-    DESCRIPTION="Descripción: $(git log -1 --pretty=format:'%s')"
-else
-  DEPLOYMENT_INFO="La página web $WEB_URL no está en línea."
-fi
-
-# Construye el mensaje
-MESSAGE="$DEPLOYMENT_INFO2\n$DEPLOYMENT_INFO\n$COMMIT\n$AUTHOR\n$REPO_URL\n$DESCRIPTION"
-
-# Envía el mensaje a Discord utilizando la API de Discord
-curl -X POST -H "Content-Type: application/json" -d "{\"content\":\"$MESSAGE\"}" "$DISCORD"
